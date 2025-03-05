@@ -1,0 +1,29 @@
+// This file is used to configure the debugger in Visual Studio Code.
+// It is used to launch the Electron application in debug mode.
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Electron: Main",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron-forge-vscode-win",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron-forge-vscode-win.cmd"
+      },
+      "runtimeArgs": [
+        "start"
+      ],
+      "env": {
+        "ELECTRON_START_URL": "http://localhost:3000"
+      },
+      "preLaunchTask": "Start React"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Electron: All",
+      "configurations": ["Electron: Main"]
+    }
+  ]
+}
