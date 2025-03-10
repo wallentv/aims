@@ -2,8 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 // 暴露ipcRenderer给渲染进程
 contextBridge.exposeInMainWorld('electron', {
-  chooseVideoFile: () => ipcRenderer.invoke('choose-video-file'),
-  chooseVideoDir: () => ipcRenderer.invoke('choose-video-dir'),
+  chooseVideoSource: () => ipcRenderer.invoke('choose-video-source'),
   generateSubtitle: (params) => ipcRenderer.invoke('generate-subtitle', params),
   onSubtitleProgress: (callback) => 
     ipcRenderer.on('subtitle-progress', (_, progress) => callback(progress)),
@@ -11,9 +10,13 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('subtitle-complete', (_, path) => callback(path)),
   onSubtitleError: (callback) => 
     ipcRenderer.on('subtitle-error', (_, error) => callback(error)),
+  // 新增状态消息通道
+  onSubtitleStatus: (callback) => 
+    ipcRenderer.on('subtitle-status', (_, status) => callback(status)),
   removeListener:() => {
     ipcRenderer.removeAllListeners('subtitle-progress');
     ipcRenderer.removeAllListeners('subtitle-complete');
     ipcRenderer.removeAllListeners('subtitle-error');
+    ipcRenderer.removeAllListeners('subtitle-status');  // 添加新通道的监听器移除
   }
 });

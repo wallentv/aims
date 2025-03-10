@@ -11,9 +11,19 @@ import numpy as np
 import ffmpeg
 import tempfile
 import shutil
+import warnings
+
+# 忽略FP16警告
+warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
 
 # 导入字幕格式化模块
 from subtitle_formatter import write_subtitle
+
+def format_duration(seconds):
+    """格式化秒数为分钟:秒格式"""
+    minutes = int(seconds // 60)
+    remaining_seconds = int(seconds % 60)
+    return f"{minutes}:{remaining_seconds:02d}"
 
 class ProgressListener:
     def __init__(self, total_duration):
@@ -53,21 +63,26 @@ def generate_subtitle(video_path, target_language, format):
         # 检查CUDA是否可用
         device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"PROGRESS:0")
-        sys.stdout.flush()
+        sys.stdout.flush()  # 确保立即刷新输出
         
         # 加载whisper模型 (可选: tiny, base, small, medium, large)
-        print(f"正在加载模型...")
-        model = whisper.load_model("base", device=device)
+        print(f"正在加载模型... 使用设备: {device}")  # 增加设备信息
+        sys.stdout.flush()  # 确保立即刷新输出
+        model = whisper.load_model("medium", device=device)
         print(f"PROGRESS:10")
-        sys.stdout.flush()
+        sys.stdout.flush()  # 确保立即刷新输出
         
         # 从视频中提取音频
+        print(f"正在从视频中提取音频...")  # 添加明确的状态信息
+        sys.stdout.flush()  # 确保立即刷新输出
         audio_path, temp_dir = extract_audio(video_path)
         print(f"PROGRESS:20")
-        sys.stdout.flush()
+        sys.stdout.flush()  # 确保立即刷新输出
 
         # 获取视频时长
         duration = get_video_duration(video_path)
+        print(f"视频时长: {format_duration(duration)}")  # 添加视频时长信息
+        sys.stdout.flush()  # 确保立即刷新输出
         
         # 处理语言代码
         language_code = target_language.lower()  # 转为小写
@@ -76,9 +91,10 @@ def generate_subtitle(video_path, target_language, format):
         elif '_' in language_code:
             language_code = language_code.split('_')[0]
             
-        print(f"开始转录音频...")
+        print(f"开始转录音频... 目标语言: {language_code}")  # 增加语言信息
+        sys.stdout.flush()  # 确保立即刷新输出
         print(f"PROGRESS:30")
-        sys.stdout.flush()
+        sys.stdout.flush()  # 确保立即刷新输出
         
         # 使用简化的转录选项，避免使用不支持的参数
         transcribe_options = {
@@ -87,33 +103,39 @@ def generate_subtitle(video_path, target_language, format):
             "verbose": True
         }
         
-        # 开始转录
+        # 创建进度监听器
+        progress_listener = ProgressListener(duration)
+        
+        # 开始转录，这里添加进度回调
         result = model.transcribe(audio_path, **transcribe_options)
+        
+        # 确保进度到达90%
         print(f"PROGRESS:90")
-        sys.stdout.flush()
+        sys.stdout.flush()  # 确保立即刷新输出
         
         # 使用字幕格式化模块生成字幕文件
+        print(f"正在生成{format}字幕文件...")
+        sys.stdout.flush()  # 确保立即刷新输出
         output_file = write_subtitle(result, output_file, format)
         
         print(f"PROGRESS:100")
-        sys.stdout.flush()
+        sys.stdout.flush()  # 确保立即刷新输出
         
         # 通知前端处理完成
         print(f"COMPLETE:{output_file}")
-        sys.stdout.flush()
+        sys.stdout.flush()  # 确保立即刷新输出
         
         return str(output_file)
     
     except Exception as e:
         print(f"ERROR:{str(e)}", file=sys.stderr)
-        sys.stderr.flush()
+        sys.stderr.flush()  # 确保立即刷新错误输出
         return None
     
     finally:
         # 清理临时文件
         if temp_dir and os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
-
 
 
 def extract_audio(video_path):

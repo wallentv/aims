@@ -72,24 +72,11 @@ app.on('window-all-closed', () => {
   }
 });
 
-// 选择视频文件
-ipcMain.handle('choose-video-file', async () => {
+// 选择视频文件或目录（修改为只选择文件）
+ipcMain.handle('choose-video-source', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [{ name: '视频文件', extensions: ['mp4', 'mkv', 'avi', 'mov', 'flv'] }]
-  });
-  
-  if (!result.canceled && result.filePaths.length > 0) {
-    return result.filePaths[0];
-  }
-  
-  return null;
-});
-
-// 选择视频目录
-ipcMain.handle('choose-video-dir', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory']
   });
   
   if (!result.canceled && result.filePaths.length > 0) {
@@ -140,14 +127,28 @@ ipcMain.handle('generate-subtitle', async (event, params) => {
       console.log(`字幕生成完成: ${subtitlePath}`);
       mainWindow.webContents.send('subtitle-complete', subtitlePath);
     } else {
-      // 记录其他输出但不发送到渲染进程
+      // 将一些重要信息发送到渲染进程
       console.log(`Python输出: ${message}`);
+      
+      // 将包含关键词的状态信息发送给渲染进程
+      const statusKeywords = ['正在加载', '提取音频', '开始转录', '视频时长', '生成字幕'];
+      if (statusKeywords.some(keyword => message.includes(keyword))) {
+        mainWindow.webContents.send('subtitle-status', message);
+      }
     }
   });
 
   pythonProcess.stderr.on('data', (data) => {
-    console.error(`错误: ${data}`);
-    mainWindow.webContents.send('subtitle-error', data.toString());
+    const errorMessage = data.toString();
+    
+    // 过滤掉FP16警告
+    if (errorMessage.includes("FP16 is not supported on CPU; using FP32 instead")) {
+      console.log("忽略警告:", errorMessage);
+      return;
+    }
+    
+    console.error(`错误: ${errorMessage}`);
+    mainWindow.webContents.send('subtitle-error', errorMessage);
   });
 
   return true;
