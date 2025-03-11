@@ -8,6 +8,7 @@
     "start": "concurrently -k \"cross-env BROWSER=none npm run react-start\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron-forge start\"",
     "package": "electron-forge package",
     "make": "electron-forge make",
+    "env": "conda activate aims",
     "publish": "electron-forge publish",
     "lint": "eslint src --ext js,jsx",
     "react-start": "cross-env BROWSER=none REACT_APP_ENTRY=src/renderer/index.js react-scripts start",

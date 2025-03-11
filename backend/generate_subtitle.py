@@ -18,6 +18,8 @@ warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using F
 
 # 导入字幕格式化模块
 from subtitle_formatter import write_subtitle
+# 导入模型配置
+from model_config import get_model_name
 
 def format_duration(seconds):
     """格式化秒数为分钟:秒格式"""
@@ -44,7 +46,7 @@ class ProgressListener:
                 sys.stdout.flush()
 
 
-def generate_subtitle(video_path, target_language, format):
+def generate_subtitle(video_path, target_language, format, model_name=None):
     """
     使用whisper生成字幕
     
@@ -52,6 +54,7 @@ def generate_subtitle(video_path, target_language, format):
         video_path (str): 视频文件路径
         target_language (str): 目标语言 (zh-CN, zh-TW, en)
         format (str): 字幕格式 (srt/ssa/vtt)
+        model_name (str, 可选): 要使用的模型名称，默认使用配置中的默认模型
     返回:
         str: 生成的字幕文件路径
     """
@@ -62,22 +65,23 @@ def generate_subtitle(video_path, target_language, format):
     try:
         # 检查CUDA是否可用
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"PROGRESS:0")
-        sys.stdout.flush()  # 确保立即刷新输出
+        
+        # 获取要使用的模型名称
+        selected_model = get_model_name(model_name)
         
         # 加载whisper模型 (可选: tiny, base, small, medium, large)
-        print(f"正在加载模型... 使用设备: {device}")  # 增加设备信息
+        print(f"正在加载模型 '{selected_model}'... 使用设备: {device}")
         sys.stdout.flush()  # 确保立即刷新输出
-        model = whisper.load_model("medium", device=device)
-        print(f"PROGRESS:10")
-        sys.stdout.flush()  # 确保立即刷新输出
+        model = whisper.load_model(selected_model, device=device)
+      
         
         # 从视频中提取音频
         print(f"正在从视频中提取音频...")  # 添加明确的状态信息
         sys.stdout.flush()  # 确保立即刷新输出
+
+
         audio_path, temp_dir = extract_audio(video_path)
-        print(f"PROGRESS:20")
-        sys.stdout.flush()  # 确保立即刷新输出
+    
 
         # 获取视频时长
         duration = get_video_duration(video_path)
@@ -93,8 +97,7 @@ def generate_subtitle(video_path, target_language, format):
             
         print(f"开始转录音频... 目标语言: {language_code}")  # 增加语言信息
         sys.stdout.flush()  # 确保立即刷新输出
-        print(f"PROGRESS:30")
-        sys.stdout.flush()  # 确保立即刷新输出
+    
         
         # 使用简化的转录选项，避免使用不支持的参数
         transcribe_options = {
@@ -109,17 +112,10 @@ def generate_subtitle(video_path, target_language, format):
         # 开始转录，这里添加进度回调
         result = model.transcribe(audio_path, **transcribe_options)
         
-        # 确保进度到达90%
-        print(f"PROGRESS:90")
-        sys.stdout.flush()  # 确保立即刷新输出
-        
         # 使用字幕格式化模块生成字幕文件
         print(f"正在生成{format}字幕文件...")
         sys.stdout.flush()  # 确保立即刷新输出
         output_file = write_subtitle(result, output_file, format)
-        
-        print(f"PROGRESS:100")
-        sys.stdout.flush()  # 确保立即刷新输出
         
         # 通知前端处理完成
         print(f"COMPLETE:{output_file}")
@@ -200,11 +196,12 @@ def parse_args():
     parser.add_argument('video_path', type=str, help='视频文件路径')
     parser.add_argument('target_language', type=str, help='目标语言')
     parser.add_argument('format', type=str, help='字幕格式(srt/ssa/vtt)')
+    parser.add_argument('--model', type=str, help='使用的模型(tiny/base/small/medium/large)', default=None)
     return parser.parse_args()
 
 def main():
     args = parse_args()
-    generate_subtitle(args.video_path, args.target_language, args.format)
+    generate_subtitle(args.video_path, args.target_language, args.format, args.model)
 
 if __name__ == "__main__":
     main()

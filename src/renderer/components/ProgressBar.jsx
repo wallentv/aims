@@ -3,10 +3,10 @@ import styled from 'styled-components';
 
 const ProgressContainer = styled.div`
   width: 100%;
-  height: 20px;
-  background-color: ${props => props.theme.colors.surface};
-  border-radius: 10px;
-  margin-top: ${props => props.theme.spacing.large};
+  height: 4px;
+  background-color: #3d3d3d;
+  border-radius: 2px;
+  margin: ${props => props.theme.spacing.medium} 0;
   overflow: hidden;
 `;
 

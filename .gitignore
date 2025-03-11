@@ -2,3 +2,8 @@
 node_modules
 build
 *.srt
+/backend/__pycache__
+*.pyc
+*.pyc
+/backend/__pycache__
+*.pyc

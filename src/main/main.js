@@ -153,3 +153,26 @@ ipcMain.handle('generate-subtitle', async (event, params) => {
 
   return true;
 });
+
+// 添加文件读写IPC处理函数
+ipcMain.handle('read-subtitle-file', async (event, filePath) => {
+  try {
+    const fs = require('fs').promises;
+    const content = await fs.readFile(filePath, 'utf8');
+    return content;
+  } catch (error) {
+    console.error('读取字幕文件失败:', error);
+    throw new Error(`读取字幕文件失败: ${error.message}`);
+  }
+});
+
+ipcMain.handle('save-subtitle-file', async (event, filePath, content) => {
+  try {
+    const fs = require('fs').promises;
+    await fs.writeFile(filePath, content, 'utf8');
+    return true;
+  } catch (error) {
+    console.error('保存字幕文件失败:', error);
+    throw new Error(`保存字幕文件失败: ${error.message}`);
+  }
+});

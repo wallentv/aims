@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld('electron', {
   // 新增状态消息通道
   onSubtitleStatus: (callback) => 
     ipcRenderer.on('subtitle-status', (_, status) => callback(status)),
+  // 添加字幕文件读写功能
+  readSubtitleFile: (filePath) => ipcRenderer.invoke('read-subtitle-file', filePath),
+  saveSubtitleFile: (filePath, content) => ipcRenderer.invoke('save-subtitle-file', filePath, content),
   removeListener:() => {
     ipcRenderer.removeAllListeners('subtitle-progress');
     ipcRenderer.removeAllListeners('subtitle-complete');

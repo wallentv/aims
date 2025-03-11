@@ -1,1 +1,1 @@
-import './renderer/index';
+import './renderer/index.jsx';
