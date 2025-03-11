@@ -5,7 +5,7 @@
   "description": "AI电影字幕生成工具",
   "main": "src/main/main.js",
   "scripts": {
-    "start": "electron-forge start",
+    "start": "concurrently -k \"cross-env BROWSER=none npm run react-start\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron-forge start\"",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
