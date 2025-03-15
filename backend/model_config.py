@@ -10,10 +10,13 @@ AVAILABLE_MODELS = [
     "small",    # 小型模型，精度较好
     "medium",   # 中型模型，较高精度
     "large",    # 大型模型，最高精度，速度最慢
+    "turbo",    # Turbo模型，速度和精度的折中
+    "large-v2", # 大型模型的第二版，提供更好的性能
+    "large-v3"  # 大型模型的第三版，进一步提升性能
 ]
 
 # 默认模型设置
-DEFAULT_MODEL = "medium"
+DEFAULT_MODEL = "turbo"
 
 def get_model_name(model_name=None):
     """

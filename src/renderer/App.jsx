@@ -51,18 +51,12 @@ const Header = styled.header`
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
-const Logo = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: flex-start; // 添加左对齐
-`;
-
 const LogoIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100px; // 修改为长条形宽度
-  height: 40px; // 修改为适合长条形的高度
+  width: 80px; // 修改为长条形宽度
+  height: 35px; // 修改为适合长条形的高度
   background-color: ${props => props.theme.colors.primary};
   border-radius: ${props => props.theme.borderRadius};
   margin-right: ${props => props.theme.spacing.small};
@@ -70,7 +64,7 @@ const LogoIcon = styled.div`
 
 const Title = styled.h1`
   color: ${props => props.theme.colors.text};
-  font-size: 20px;
+  font-size: 16px; // 修改：将标题文字变小
   font-weight: 500;
   margin: 0;
 `;
@@ -276,12 +270,10 @@ function App() {
     <ThemeProvider theme={theme}>
       <AppContainer>
         <Header style={{ paddingLeft: 0 }}>
-          <Logo>
-            <LogoIcon>
-              <span style={{ fontSize: '16px', color: 'white' }}>wallenTV</span>
-            </LogoIcon>
-            <Title>AI字幕生成</Title>
-          </Logo>
+          <LogoIcon>
+            <span style={{ fontSize: '12px', color: 'white' }}>涡轮TV</span>
+          </LogoIcon>
+          <Title>AI字幕生成</Title>
         </Header>
         
         <MainContent>

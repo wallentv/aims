@@ -12,6 +12,7 @@ import ffmpeg
 import tempfile
 import shutil
 import warnings
+import threading
 
 # 忽略FP16警告
 warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
@@ -32,18 +33,62 @@ class ProgressListener:
         self.total_duration = total_duration
         self.last_progress = 0
         self.start_time = time.time()
+        
+        # 预估总处理时间 (根据视频时长估算)
+        self.estimated_total_time = max(60, total_duration * 0.1)  # 最少60秒，或视频长度的10%
+        
+        # 启动一个模拟进度更新线程
+        self._start_progress_simulation()
+    
+    def _start_progress_simulation(self):
+        """启动一个后台线程来更新模拟进度"""
+        self.should_stop = False
+        
+        def update_progress():
+            # 进度阶段: 0-20% 准备阶段, 20-90% 转录阶段, 90-100% 完成阶段
+            while not self.should_stop and self.last_progress < 90:
+                elapsed = time.time() - self.start_time
+                # 计算模拟进度
+                if elapsed < self.estimated_total_time * 0.2:
+                    # 准备阶段 (0-20%)
+                    progress = int(min(20, elapsed / (self.estimated_total_time * 0.2) * 20))
+                else:
+                    # 转录阶段 (20-90%)
+                    remaining_ratio = min(1.0, (elapsed - self.estimated_total_time * 0.2) / 
+                                         (self.estimated_total_time * 0.8))
+                    progress = int(20 + remaining_ratio * 70)
+                
+                # 更新进度
+                if progress > self.last_progress:
+                    self.last_progress = progress
+                    print(f"PROGRESS:{progress}")
+                    sys.stdout.flush()
+                
+                # 每1.5秒更新一次
+                time.sleep(1.5)
+        
+        self.progress_thread = threading.Thread(target=update_progress)
+        self.progress_thread.daemon = True
+        self.progress_thread.start()
     
     def __call__(self, progress_dict):
+        """仍保留原回调方法，以便在实际进度可用时使用"""
         if progress_dict.get("task") == "transcribe":
-            # 计算已完成的转录时长占总时长的百分比
             current_time = progress_dict.get("time", 0)
-            progress = min(int((current_time / self.total_duration) * 70) + 20, 90)
-            
-            # 只有当进度变化超过1%时才报告，避免频繁输出
-            if progress > self.last_progress:
-                self.last_progress = progress
-                print(f"PROGRESS:{progress}")
-                sys.stdout.flush()
+            if current_time > 0:
+                # 如果有实际进度，使用实际进度
+                progress = min(int((current_time / self.total_duration) * 70) + 20, 90)
+                if progress > self.last_progress:
+                    self.last_progress = progress
+                    print(f"PROGRESS:{progress}")
+                    sys.stdout.flush()
+    
+    def complete(self):
+        """完成处理时调用"""
+        self.should_stop = True
+        self.last_progress = 100
+        print("PROGRESS:100")
+        sys.stdout.flush()
 
 
 def generate_subtitle(video_path, target_language, format, model_name=None):

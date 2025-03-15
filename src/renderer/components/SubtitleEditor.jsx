@@ -108,6 +108,30 @@ const ErrorMessage = styled.div`
 
 const SuccessMessage = styled(StatusMessage)`
   border-left: 3px solid #2ecc71;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const OpenFolderButton = styled.button`
+  background-color: transparent;
+  color: ${props => props.theme.colors.secondary};
+  border: 1px solid ${props => props.theme.colors.secondary};
+  border-radius: ${props => props.theme.borderRadius};
+  padding: 2px 8px;
+  margin-left: 10px;
+  cursor: pointer;
+  font-size: 12px;
+  
+  &:hover {
+    background-color: rgba(33, 134, 208, 0.1);
+  }
+`;
+
+const PathContainer = styled.div`
+  display: flex;
+  align-items: center;
+  flex: 1;
 `;
 
 function SubtitleEditor({ 
@@ -130,7 +154,7 @@ function SubtitleEditor({
         try {
           const subtitleContent = await window.electron.readSubtitleFile(subtitlePath);
           setContent(subtitleContent);
-          setMessage('字幕已加载');
+          setMessage(`字幕已保存: ${subtitlePath}`);
         } catch (error) {
           console.error('加载字幕失败:', error);
           setMessage(`加载字幕失败: ${error.message}`);
@@ -148,13 +172,30 @@ function SubtitleEditor({
     try {
       const success = await onSave(subtitlePath, content);
       if (success) {
-        setMessage('字幕保存成功！');
+        setMessage(`字幕已保存: ${subtitlePath}`);
       }
     } catch (error) {
       console.error('保存字幕失败:', error);
       setMessage(`保存字幕失败: ${error.message}`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const openSubtitleFolder = () => {
+    if (subtitlePath) {
+      try {
+        console.log("尝试打开目录:", subtitlePath);
+        if (typeof window.electron.openSubtitleDirectory !== 'function') {
+          console.error("openSubtitleDirectory 未定义，可用的方法:", Object.keys(window.electron));
+          alert("打开目录功能暂时不可用，请完全重启应用后再试");
+          return;
+        }
+        window.electron.openSubtitleDirectory(subtitlePath);
+      } catch (error) {
+        console.error("打开目录失败:", error);
+        alert(`打开目录失败: ${error.message}`);
+      }
     }
   };
 
@@ -180,7 +221,16 @@ function SubtitleEditor({
       )}
       
       {message && !isGenerating && (
-        <SuccessMessage>{message}</SuccessMessage>
+        <SuccessMessage>
+          <PathContainer>
+            {message}
+          </PathContainer>
+          {subtitlePath && (
+            <OpenFolderButton onClick={openSubtitleFolder}>
+              打开目录
+            </OpenFolderButton>
+          )}
+        </SuccessMessage>
       )}
       
       {/* 编辑区域 */}

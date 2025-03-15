@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -174,5 +174,17 @@ ipcMain.handle('save-subtitle-file', async (event, filePath, content) => {
   } catch (error) {
     console.error('保存字幕文件失败:', error);
     throw new Error(`保存字幕文件失败: ${error.message}`);
+  }
+});
+
+// 添加打开字幕文件所在目录的处理函数
+ipcMain.handle('open-subtitle-directory', async (event, filePath) => {
+  try {
+    // 使用shell.showItemInFolder来在文件管理器中显示文件
+    shell.showItemInFolder(filePath);
+    return true;
+  } catch (error) {
+    console.error('打开字幕文件目录失败:', error);
+    throw new Error(`打开字幕文件目录失败: ${error.message}`);
   }
 });
