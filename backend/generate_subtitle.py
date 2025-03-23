@@ -91,47 +91,53 @@ class ProgressListener:
         sys.stdout.flush()
 
 
-def generate_subtitle(video_path, target_language, format, model_name=None):
+def generate_subtitle(video_path, target_language, format, model_name=None, is_audio=False):
     """
     使用whisper生成字幕
     
     参数:
-        video_path (str): 视频文件路径
+        video_path (str): 视频或音频文件路径
         target_language (str): 目标语言 (zh-CN, zh-TW, en)
         format (str): 字幕格式 (srt/ssa/vtt)
         model_name (str, 可选): 要使用的模型名称，默认使用配置中的默认模型
+        is_audio (bool, 可选): 是否为音频文件，默认为False
     返回:
         str: 生成的字幕文件路径
     """
     video_file = Path(video_path)
     output_file = video_file.with_suffix(f'.{format.lower()}')
     temp_dir = None
+    audio_path = None
     
     try:
         # 检查CUDA是否可用
         device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        # 获取要使用的模型名称
-        selected_model = get_model_name(model_name)
+        # 获取要使用的模型名称，默认值为 "turbo"
+        selected_model = get_model_name(model_name or "turbo")
         
         # 加载whisper模型 (可选: tiny, base, small, medium, large)
         print(f"正在加载模型 '{selected_model}'... 使用设备: {device}")
         sys.stdout.flush()  # 确保立即刷新输出
         model = whisper.load_model(selected_model, device=device)
       
-        
-        # 从视频中提取音频
-        print(f"正在从视频中提取音频...")  # 添加明确的状态信息
-        sys.stdout.flush()  # 确保立即刷新输出
-
-
-        audio_path, temp_dir = extract_audio(video_path)
-    
-
-        # 获取视频时长
-        duration = get_video_duration(video_path)
-        print(f"视频时长: {format_duration(duration)}")  # 添加视频时长信息
-        sys.stdout.flush()  # 确保立即刷新输出
+        # 如果是音频文件，则跳过提取音频步骤
+        if is_audio:
+            print(f"处理音频文件，跳过音频提取步骤...")
+            sys.stdout.flush()
+            audio_path = video_path
+            # 获取音频时长
+            duration = get_audio_duration(audio_path)
+        else:
+            # 从视频中提取音频
+            print(f"正在从视频中提取音频...")
+            sys.stdout.flush()
+            audio_path, temp_dir = extract_audio(video_path)
+            # 获取视频时长
+            duration = get_video_duration(video_path)
+            
+        print(f"媒体时长: {format_duration(duration)}")
+        sys.stdout.flush()
         
         # 处理语言代码
         language_code = target_language.lower()  # 转为小写
@@ -140,10 +146,9 @@ def generate_subtitle(video_path, target_language, format, model_name=None):
         elif '_' in language_code:
             language_code = language_code.split('_')[0]
             
-        print(f"开始转录音频... 目标语言: {language_code}")  # 增加语言信息
-        sys.stdout.flush()  # 确保立即刷新输出
+        print(f"开始转录音频... 目标语言: {language_code}")
+        sys.stdout.flush()
     
-        
         # 使用简化的转录选项，避免使用不支持的参数
         transcribe_options = {
             "task": "transcribe",
@@ -159,25 +164,27 @@ def generate_subtitle(video_path, target_language, format, model_name=None):
         
         # 使用字幕格式化模块生成字幕文件
         print(f"正在生成{format}字幕文件...")
-        sys.stdout.flush()  # 确保立即刷新输出
+        sys.stdout.flush()
         output_file = write_subtitle(result, output_file, format)
         
         # 通知前端处理完成
         print(f"COMPLETE:{output_file}")
-        sys.stdout.flush()  # 确保立即刷新输出
+        sys.stdout.flush()
+        
+        # 完成处理
+        progress_listener.complete()
         
         return str(output_file)
     
     except Exception as e:
         print(f"ERROR:{str(e)}", file=sys.stderr)
-        sys.stderr.flush()  # 确保立即刷新错误输出
+        sys.stderr.flush()
         return None
     
     finally:
         # 清理临时文件
         if temp_dir and os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
-
 
 def extract_audio(video_path):
     """
@@ -218,6 +225,17 @@ def get_video_duration(video_path):
         print(f"获取视频时长时出错: {e.stderr.decode()}")
         return 0
 
+def get_audio_duration(audio_path):
+    """
+    获取音频文件的总时长（秒）
+    """
+    try:
+        probe = ffmpeg.probe(audio_path)
+        duration = float(probe['format']['duration'])
+        return duration
+    except ffmpeg.Error as e:
+        print(f"获取音频时长时出错: {e.stderr.decode()}")
+        return 0
 
 def format_timestamp(seconds, always_include_hours=False):
     """
@@ -242,11 +260,21 @@ def parse_args():
     parser.add_argument('target_language', type=str, help='目标语言')
     parser.add_argument('format', type=str, help='字幕格式(srt/ssa/vtt)')
     parser.add_argument('--model', type=str, help='使用的模型(tiny/base/small/medium/large)', default=None)
+    parser.add_argument('--audio', action='store_true', help='处理音频文件而不是视频文件')
     return parser.parse_args()
 
 def main():
     args = parse_args()
-    generate_subtitle(args.video_path, args.target_language, args.format, args.model)
+    video_path = args.video_path
+    target_language = args.target_language
+    output_format = args.format
+    is_audio = args.audio  # 检查是否为音频文件
+
+    print(f"处理{'音频' if is_audio else '视频'}文件: {video_path}")
+    sys.stdout.flush()
+
+    # 直接调用generate_subtitle，并传递is_audio参数
+    generate_subtitle(video_path, target_language, output_format, args.model, is_audio)
 
 if __name__ == "__main__":
     main()

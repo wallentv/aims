@@ -14,7 +14,12 @@
     "react-start": "cross-env BROWSER=none REACT_APP_ENTRY=src/renderer/index.js react-scripts start",
     "react-build": "react-scripts build",
     "dev": "concurrently -k \"cross-env BROWSER=none npm run react-start\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron-forge start\"",
-    "dev:debug": "concurrently -k \"cross-env BROWSER=none npm run react-start\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 ELECTRON_DEBUG=true electron-forge start --inspect-electron\""
+    "dev:debug": "concurrently -k \"cross-env BROWSER=none npm run react-start\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 ELECTRON_DEBUG=true electron-forge start --inspect-electron\"",
+    "prebuild": "npm run react-build",
+    "build": "npm run package",
+    "build-installer": "npm run make",
+    "build-macos": "npm run react-build && electron-forge make --platform darwin",
+    "install-py-deps": "pip install pyinstaller"
   },
   "keywords": [
     "AI",
@@ -46,7 +51,8 @@
     "electron-devtools-installer": "^4.0.0",
     "eslint": "^8.52.0",
     "eslint-plugin-react": "^7.33.2",
-    "wait-on": "^8.0.2"
+    "wait-on": "^8.0.2",
+    "@electron-forge/maker-dmg": "^6.4.2"
   },
   "browserslist": {
     "production": [
