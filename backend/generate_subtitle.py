@@ -46,17 +46,17 @@ class ProgressListener:
         
         def update_progress():
             # 进度阶段: 0-20% 准备阶段, 20-90% 转录阶段, 90-100% 完成阶段
-            while not self.should_stop and self.last_progress < 90:
+            while not self.should_stop and self.last_progress < 95:  # 修改为95%，给完成阶段留出空间
                 elapsed = time.time() - self.start_time
                 # 计算模拟进度
                 if elapsed < self.estimated_total_time * 0.2:
                     # 准备阶段 (0-20%)
                     progress = int(min(20, elapsed / (self.estimated_total_time * 0.2) * 20))
                 else:
-                    # 转录阶段 (20-90%)
+                    # 转录阶段 (20-95%)
                     remaining_ratio = min(1.0, (elapsed - self.estimated_total_time * 0.2) / 
                                          (self.estimated_total_time * 0.8))
-                    progress = int(20 + remaining_ratio * 70)
+                    progress = int(20 + remaining_ratio * 75)  # 调整为75以到达95%
                 
                 # 更新进度
                 if progress > self.last_progress:
@@ -77,7 +77,7 @@ class ProgressListener:
             current_time = progress_dict.get("time", 0)
             if current_time > 0:
                 # 如果有实际进度，使用实际进度
-                progress = min(int((current_time / self.total_duration) * 70) + 20, 90)
+                progress = min(int((current_time / self.total_duration) * 75) + 20, 95)  # 调整为75以到达95%
                 if progress > self.last_progress:
                     self.last_progress = progress
                     print(f"PROGRESS:{progress}")
@@ -86,12 +86,25 @@ class ProgressListener:
     def complete(self):
         """完成处理时调用"""
         self.should_stop = True
+        # 添加中间进度以确保平滑过渡到100%
+        if self.last_progress < 97:
+            self.last_progress = 97
+            print("PROGRESS:97")
+            sys.stdout.flush()
+            time.sleep(0.5)
+            
+        if self.last_progress < 99:
+            self.last_progress = 99
+            print("PROGRESS:99")
+            sys.stdout.flush()
+            time.sleep(0.5)
+            
         self.last_progress = 100
         print("PROGRESS:100")
         sys.stdout.flush()
 
 
-def generate_subtitle(video_path, target_language, format, model_name=None, is_audio=False):
+def generate_subtitle(video_path, target_language, format, model_name=None, precision=None, is_audio=False):
     """
     使用whisper生成字幕
     
@@ -100,6 +113,7 @@ def generate_subtitle(video_path, target_language, format, model_name=None, is_a
         target_language (str): 目标语言 (zh-CN, zh-TW, en)
         format (str): 字幕格式 (srt/ssa/vtt)
         model_name (str, 可选): 要使用的模型名称，默认使用配置中的默认模型
+        precision (str, 可选): 模型精度选项 (high/medium/low)
         is_audio (bool, 可选): 是否为音频文件，默认为False
     返回:
         str: 生成的字幕文件路径
@@ -113,8 +127,8 @@ def generate_subtitle(video_path, target_language, format, model_name=None, is_a
         # 检查CUDA是否可用
         device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        # 获取要使用的模型名称，默认值为 "turbo"
-        selected_model = get_model_name(model_name or "turbo")
+        # 获取要使用的模型名称，根据精度或明确的模型名称选择
+        selected_model = get_model_name(model_name, precision)
         
         # 加载whisper模型 (可选: tiny, base, small, medium, large)
         print(f"正在加载模型 '{selected_model}'... 使用设备: {device}")
@@ -167,12 +181,12 @@ def generate_subtitle(video_path, target_language, format, model_name=None, is_a
         sys.stdout.flush()
         output_file = write_subtitle(result, output_file, format)
         
+        # 明确调用complete方法，确保进度到达100%
+        progress_listener.complete()
+        
         # 通知前端处理完成
         print(f"COMPLETE:{output_file}")
         sys.stdout.flush()
-        
-        # 完成处理
-        progress_listener.complete()
         
         return str(output_file)
     
@@ -260,6 +274,7 @@ def parse_args():
     parser.add_argument('target_language', type=str, help='目标语言')
     parser.add_argument('format', type=str, help='字幕格式(srt/ssa/vtt)')
     parser.add_argument('--model', type=str, help='使用的模型(tiny/base/small/medium/large)', default=None)
+    parser.add_argument('--precision', type=str, help='模型精度(high/medium/low)', default=None)
     parser.add_argument('--audio', action='store_true', help='处理音频文件而不是视频文件')
     return parser.parse_args()
 
@@ -269,12 +284,13 @@ def main():
     target_language = args.target_language
     output_format = args.format
     is_audio = args.audio  # 检查是否为音频文件
+    precision = args.precision  # 获取精度参数
 
     print(f"处理{'音频' if is_audio else '视频'}文件: {video_path}")
     sys.stdout.flush()
 
-    # 直接调用generate_subtitle，并传递is_audio参数
-    generate_subtitle(video_path, target_language, output_format, args.model, is_audio)
+    # 直接调用generate_subtitle，并传递is_audio和precision参数
+    generate_subtitle(video_path, target_language, output_format, args.model, precision, is_audio)
 
 if __name__ == "__main__":
     main()

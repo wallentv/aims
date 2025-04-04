@@ -66,14 +66,24 @@ function SubtitleSettings({ settings, onChange }) {
     { value: 'ssa', label: 'SSA' }
   ];
 
+  const precisionOptions = [
+    { value: 'high', label: '高精度' },
+    { value: 'medium', label: '中精度' },
+    { value: 'low', label: '低精度' }
+  ];
+  
   const handleLanguageChange = (value) => {
     onChange({ ...settings, language: value });
   };
-
+  
   const handleFormatChange = (value) => {
     onChange({ ...settings, format: value });
   };
 
+  const handlePrecisionChange = (value) => {
+    onChange({ ...settings, precision: value });
+  };
+  
   return (
     <Container>
       <SettingsGrid>
@@ -102,6 +112,21 @@ function SubtitleSettings({ settings, onChange }) {
                 onClick={() => handleFormatChange(format.value)}
               >
                 {format.label}
+              </OptionButton>
+            ))}
+          </OptionsTable>
+        </Group>
+
+        <Group>
+          <GroupTitle>语音识别精度</GroupTitle>
+          <OptionsTable>
+            {precisionOptions.map(option => (
+              <OptionButton 
+                key={option.value}
+                selected={settings.precision === option.value}
+                onClick={() => handlePrecisionChange(option.value)}
+              >
+                {option.label}
               </OptionButton>
             ))}
           </OptionsTable>

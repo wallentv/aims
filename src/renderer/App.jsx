@@ -151,7 +151,8 @@ function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [subtitleSettings, setSubtitleSettings] = useState({
     format: 'srt',
-    language: 'zh'
+    language: 'zh',
+    precision: 'medium' // Default to medium precision
   });
   const [processing, setProcessing] = useState(false);
   const [subtitleState, setSubtitleState] = useState({
@@ -247,7 +248,8 @@ function App() {
     const params = {
       videoPath: selectedFile,
       targetLanguage: subtitleSettings.language,
-      format: subtitleSettings.format
+      format: subtitleSettings.format,
+      precision: subtitleSettings.precision
     };
 
     // 发送生成字幕的请求到主进程

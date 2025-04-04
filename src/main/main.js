@@ -130,10 +130,9 @@ ipcMain.handle('generate-subtitle', async (event, params) => {
     return false;
   }
 
-  // 修改默认模型为精度最高的 "large-v3"
-  const { videoPath, targetLanguage = 'zh-CN', format = 'srt', modelSize = 'large-v3' } = params;
+  const { videoPath, targetLanguage = 'zh-CN', format = 'srt', modelSize = 'large-v3', precision } = params;
 
-  console.log(`生成字幕: ${__dirname}, ${videoPath}, ${targetLanguage}, ${format}`);
+  console.log(`生成字幕: ${__dirname}, ${videoPath}, ${targetLanguage}, ${format}, 精度: ${precision}`);
 
   // 获取项目根目录
   const rootPath = path.join(__dirname, '../../');
@@ -173,30 +172,33 @@ ipcMain.handle('generate-subtitle', async (event, params) => {
     mainWindow.webContents.send('subtitle-status', `Whisper ${modelSize} 模型尚未下载，将在首次运行时自动下载，请保持网络连接并耐心等待。`);
   }
 
-  // 修改：改进命令行参数构造方法，避免传递空字符串
-  const spawnArgs = [];
-  
+  // 准备启动参数 - 修改参数传递方式
+  let baseArgs = [];
   if (isPacked) {
-    // 添加必要的位置参数
-    spawnArgs.push(videoPath, targetLanguage, format);
+    baseArgs = [videoPath, targetLanguage, format];
   } else {
-    // 非打包环境下先添加脚本路径
-    spawnArgs.push(scriptPath, videoPath, targetLanguage, format);
+    baseArgs = [scriptPath, videoPath, targetLanguage, format];
   }
   
-  // 仅当处理音频文件时才添加--audio参数
+  // 添加可选参数
+  const optionalArgs = [];
   if (isAudioFile) {
-    spawnArgs.push('--audio');
+    optionalArgs.push('--audio');
   }
   
-  // 添加模型参数
-  spawnArgs.push(`--model=${modelSize}`);
+  // 添加精度参数，优先使用前端传来的精度设置
+  if (precision) {
+    optionalArgs.push(`--precision=${precision}`);
+  } else if (modelSize) {
+    // 兼容旧方式，如果没有传递精度，使用模型大小
+    optionalArgs.push(`--model=${modelSize}`);
+  }
+  
+  const spawnArgs = [...baseArgs, ...optionalArgs];
 
   // 启动Python进程
   console.log(`启动命令: ${pythonExecutable} ${spawnArgs.join(' ')}`);
-  const pythonProcess = isPacked
-    ? spawn(pythonExecutable, spawnArgs)
-    : spawn(pythonExecutable, spawnArgs);
+  const pythonProcess = spawn(pythonExecutable, spawnArgs);
 
   let progress = 0;
   let isDownloadingModel = false;
@@ -211,7 +213,15 @@ ipcMain.handle('generate-subtitle', async (event, params) => {
     } else if (message.startsWith('COMPLETE:')) {
       const subtitlePath = message.split(':')[1];
       console.log(`字幕生成完成: ${subtitlePath}`);
-      mainWindow.webContents.send('subtitle-complete', subtitlePath);
+      // 确保字幕路径存在
+      if (fs.existsSync(subtitlePath)) {
+        mainWindow.webContents.send('subtitle-complete', subtitlePath);
+      } else {
+        // 如果文件不存在，发送错误
+        const errorMsg = `字幕生成完成，但文件未找到：${subtitlePath}`;
+        console.error(errorMsg);
+        mainWindow.webContents.send('subtitle-error', errorMsg);
+      }
     } else if (message.includes('Downloading') && message.includes('whisper')) {
       // 检测到模型下载信息
       isDownloadingModel = true;
@@ -247,9 +257,45 @@ ipcMain.handle('generate-subtitle', async (event, params) => {
 // 添加文件读写IPC处理函数
 ipcMain.handle('read-subtitle-file', async (event, filePath) => {
   try {
-    const fs = require('fs').promises;
-    const content = await fs.readFile(filePath, 'utf8');
-    return content;
+    // 检查文件路径是否存在
+    console.log(`尝试读取字幕文件: ${filePath}`);
+    
+    const fsPromises = require('fs').promises;
+    
+    // 检查文件路径是否为字符串且非空
+    if (!filePath || typeof filePath !== 'string') {
+      const errMsg = `无效的文件路径: ${filePath}`;
+      console.error(errMsg);
+      throw new Error(errMsg);
+    }
+    
+    // 检查文件是否存在
+    try {
+      const stats = await fsPromises.stat(filePath);
+      if (!stats.isFile()) {
+        throw new Error(`路径不是有效文件: ${filePath}`);
+      }
+    } catch (err) {
+      console.error(`字幕文件不存在或无法访问: ${filePath}`, err);
+      throw new Error(`字幕文件不存在或无法访问: ${err.message}`);
+    }
+    
+    // 读取文件内容
+    try {
+      const content = await fsPromises.readFile(filePath, 'utf8');
+      console.log(`成功读取字幕文件，内容长度: ${content.length} 字符`);
+      
+      // 检查内容是否为空
+      if (!content || content.trim().length === 0) {
+        console.warn(`字幕文件内容为空: ${filePath}`);
+      }
+      
+      // 确保内容是字符串
+      return content.toString();
+    } catch (err) {
+      console.error(`读取字幕文件内容失败: ${filePath}`, err);
+      throw new Error(`读取字幕文件内容失败: ${err.message}`);
+    }
   } catch (error) {
     console.error('读取字幕文件失败:', error);
     throw new Error(`读取字幕文件失败: ${error.message}`);
@@ -258,8 +304,29 @@ ipcMain.handle('read-subtitle-file', async (event, filePath) => {
 
 ipcMain.handle('save-subtitle-file', async (event, filePath, content) => {
   try {
-    const fs = require('fs').promises;
-    await fs.writeFile(filePath, content, 'utf8');
+    // 验证参数
+    if (!filePath || typeof filePath !== 'string') {
+      throw new Error('无效的文件路径');
+    }
+    
+    if (typeof content !== 'string') {
+      throw new Error('内容必须是字符串类型');
+    }
+    
+    console.log(`尝试保存字幕文件: ${filePath}, 内容长度: ${content.length}`);
+    
+    // 确保目录存在
+    const dirPath = path.dirname(filePath);
+    try {
+      await fs.promises.mkdir(dirPath, { recursive: true });
+    } catch (err) {
+      console.warn(`创建目录失败: ${dirPath}, 可能已存在`, err);
+      // 继续尝试保存文件
+    }
+    
+    // 保存文件
+    await fs.promises.writeFile(filePath, content, 'utf8');
+    console.log(`字幕文件保存成功: ${filePath}`);
     return true;
   } catch (error) {
     console.error('保存字幕文件失败:', error);
@@ -270,6 +337,25 @@ ipcMain.handle('save-subtitle-file', async (event, filePath, content) => {
 // 添加打开字幕文件所在目录的处理函数
 ipcMain.handle('open-subtitle-directory', async (event, filePath) => {
   try {
+    // 验证路径
+    if (!filePath || typeof filePath !== 'string') {
+      throw new Error('无效的文件路径');
+    }
+    
+    console.log(`尝试打开文件目录: ${filePath}`);
+    
+    // 检查文件是否存在
+    if (!fs.existsSync(filePath)) {
+      // 如果文件不存在，尝试打开其父目录
+      const dirPath = path.dirname(filePath);
+      if (fs.existsSync(dirPath)) {
+        console.log(`文件不存在，尝试打开父目录: ${dirPath}`);
+        shell.openPath(dirPath);
+        return true;
+      }
+      throw new Error(`文件路径不存在: ${filePath}`);
+    }
+    
     // 使用shell.showItemInFolder来在文件管理器中显示文件
     shell.showItemInFolder(filePath);
     return true;

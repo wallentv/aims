@@ -146,24 +146,46 @@ function SubtitleEditor({
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [loadError, setLoadError] = useState(null);
+  const [loadAttempted, setLoadAttempted] = useState(false); // Track if we've tried to load
 
   // 当字幕路径变化时加载字幕内容
   useEffect(() => {
+    // 确保路径变化时重置加载状态
+    if (subtitlePath) {
+      setLoadAttempted(false);
+    }
+    
     const loadSubtitle = async () => {
-      if (subtitlePath) {
+      if (subtitlePath && !loadAttempted) {
+        console.log(`开始加载字幕文件: ${subtitlePath}`);
+        setLoadAttempted(true);
+        
         try {
+          setLoadError(null);
           const subtitleContent = await window.electron.readSubtitleFile(subtitlePath);
+          console.log(`字幕内容已加载，长度: ${subtitleContent.length} 字符`);
           setContent(subtitleContent);
-          setMessage(`字幕已保存: ${subtitlePath}`);
+          setMessage(`字幕已加载: ${subtitlePath}`);
         } catch (error) {
           console.error('加载字幕失败:', error);
+          setLoadError(`加载字幕失败: ${error.message}`);
           setMessage(`加载字幕失败: ${error.message}`);
         }
       }
     };
 
     loadSubtitle();
-  }, [subtitlePath]);
+  }, [subtitlePath, loadAttempted]);
+
+  // 监听生成完成状态，确保字幕加载
+  useEffect(() => {
+    if (!isGenerating && subtitlePath && loadError) {
+      // 如果生成完成但加载失败，尝试重新加载
+      console.log('字幕生成已完成，但加载失败，尝试重新加载');
+      setLoadAttempted(false);
+    }
+  }, [isGenerating, subtitlePath, loadError]);
 
   const handleSave = async () => {
     if (!subtitlePath) return;
@@ -199,6 +221,14 @@ function SubtitleEditor({
     }
   };
 
+  // 手动重新加载字幕功能
+  const handleReloadSubtitle = async () => {
+    if (subtitlePath) {
+      console.log(`手动重新加载字幕: ${subtitlePath}`);
+      setLoadAttempted(false);
+    }
+  };
+
   return (
     <EditorContainer>
       {/* 显示进度和状态 - 只保留一个状态显示区域 */}
@@ -216,8 +246,15 @@ function SubtitleEditor({
         </ProcessingContainer>
       )}
       
-      {error && (
-        <ErrorMessage>{error}</ErrorMessage>
+      {(error || loadError) && (
+        <ErrorMessage>
+          {error || loadError}
+          {loadError && subtitlePath && (
+            <OpenFolderButton onClick={handleReloadSubtitle} style={{ marginLeft: '10px' }}>
+              重试加载
+            </OpenFolderButton>
+          )}
+        </ErrorMessage>
       )}
       
       {message && !isGenerating && (
@@ -226,9 +263,14 @@ function SubtitleEditor({
             {message}
           </PathContainer>
           {subtitlePath && (
-            <OpenFolderButton onClick={openSubtitleFolder}>
-              打开目录
-            </OpenFolderButton>
+            <div>
+              <OpenFolderButton onClick={openSubtitleFolder} style={{ marginRight: '5px' }}>
+                打开目录
+              </OpenFolderButton>
+              <OpenFolderButton onClick={handleReloadSubtitle}>
+                重新加载
+              </OpenFolderButton>
+            </div>
           )}
         </SuccessMessage>
       )}
@@ -237,7 +279,7 @@ function SubtitleEditor({
       <TextArea 
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder={isGenerating ? "字幕生成中..." : "字幕内容将显示在这里..."}
+        placeholder={isGenerating ? "字幕生成中..." : subtitlePath ? "正在加载字幕..." : "字幕内容将显示在这里..."}
         disabled={isGenerating}
       />
       
