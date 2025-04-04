@@ -149,9 +149,9 @@ function SubtitleEditor({
   const [loadError, setLoadError] = useState(null);
   const [loadAttempted, setLoadAttempted] = useState(false); // Track if we've tried to load
 
-  // 当字幕路径变化时加载字幕内容
+  // 当字幕路径变化时加载字幕内容 - 修复以确保路径变化时重新加载
   useEffect(() => {
-    // 确保路径变化时重置加载状态
+    // 当字幕路径变化或生成完成时，重置加载状态，强制重新加载
     if (subtitlePath) {
       setLoadAttempted(false);
     }
@@ -174,18 +174,21 @@ function SubtitleEditor({
         }
       }
     };
-
+    
     loadSubtitle();
   }, [subtitlePath, loadAttempted]);
 
-  // 监听生成完成状态，确保字幕加载
+  // 监听生成完成状态，确保字幕加载 - 修改此处以改进加载逻辑
   useEffect(() => {
-    if (!isGenerating && subtitlePath && loadError) {
-      // 如果生成完成但加载失败，尝试重新加载
-      console.log('字幕生成已完成，但加载失败，尝试重新加载');
-      setLoadAttempted(false);
+    // 当生成过程刚结束时（从isGenerating=true变为false），强制重新加载字幕
+    if (!isGenerating && subtitlePath) {
+      console.log('字幕生成完成，尝试加载字幕文件');
+      // 短暂延迟确保文件完全写入
+      setTimeout(() => {
+        setLoadAttempted(false);
+      }, 500);
     }
-  }, [isGenerating, subtitlePath, loadError]);
+  }, [isGenerating, subtitlePath]);
 
   const handleSave = async () => {
     if (!subtitlePath) return;
