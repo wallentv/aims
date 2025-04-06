@@ -211,17 +211,57 @@ ipcMain.handle('generate-subtitle', async (event, params) => {
       console.log(`字幕处理进度: ${progress}%`);
       mainWindow.webContents.send('subtitle-progress', progress);
     } else if (message.startsWith('COMPLETE:')) {
-      const subtitlePath = message.split(':')[1];
-      console.log(`字幕生成完成: ${subtitlePath}`);
-      // 确保字幕路径存在
-      if (fs.existsSync(subtitlePath)) {
-        mainWindow.webContents.send('subtitle-complete', subtitlePath);
-      } else {
-        // 如果文件不存在，发送错误
-        const errorMsg = `字幕生成完成，但文件未找到：${subtitlePath}`;
-        console.error(errorMsg);
-        mainWindow.webContents.send('subtitle-error', errorMsg);
+      // 提取字幕文件路径，修正路径处理方式
+      const lines = message.split('\n');
+      // 找到以 COMPLETE: 开头的行并正确提取路径
+      let subtitlePath = '';
+      for (const line of lines) {
+        if (line.trim().startsWith('COMPLETE:')) {
+          subtitlePath = line.substring(line.indexOf(':') + 1).trim();
+          break;
+        }
       }
+      
+      console.log(`字幕生成完成，原始路径: ${subtitlePath}`);
+      
+      // 修复可能的路径问题
+      subtitlePath = subtitlePath.replace(/(\r\n|\n|\r)/gm, "");
+      
+      // 去除可能附加在路径末尾的额外文本（如 "字幕生成完成: /path/to/file"）
+      if (subtitlePath.includes('.srt') || subtitlePath.includes('.ssa') || subtitlePath.includes('.vtt')) {
+        const extensions = ['.srt', '.ssa', '.vtt'];
+        for (const ext of extensions) {
+          const index = subtitlePath.indexOf(ext);
+          if (index > 0) {
+            subtitlePath = subtitlePath.substring(0, index + ext.length);
+            break;
+          }
+        }
+      }
+      
+      console.log(`处理后的字幕路径: ${subtitlePath}`);
+      
+      // 添加短暂延迟确保UI更新和文件系统同步
+      setTimeout(() => {
+        try {
+          // 使用stat同步方法检查文件是否存在，更加可靠
+          if (fs.statSync(subtitlePath).isFile()) {
+            console.log(`发送完成信号到前端，文件路径: ${subtitlePath}`);
+            mainWindow.webContents.send('subtitle-complete', subtitlePath);
+            // 添加额外的状态更新
+            mainWindow.webContents.send('subtitle-status', `字幕生成完成，保存至: ${subtitlePath}`);
+          } else {
+            const errorMsg = `字幕生成完成，但文件不是有效文件：${subtitlePath}`;
+            console.error(errorMsg);
+            mainWindow.webContents.send('subtitle-error', errorMsg);
+          }
+        } catch (err) {
+          // 如果文件不存在，发送错误
+          const errorMsg = `字幕生成完成，但文件未找到：${subtitlePath}，错误：${err.message}`;
+          console.error(errorMsg);
+          mainWindow.webContents.send('subtitle-error', errorMsg);
+        }
+      }, 1000); // 增加延迟到1000ms，给文件系统更多时间完成写入
     } else if (message.includes('Downloading') && message.includes('whisper')) {
       // 检测到模型下载信息
       isDownloadingModel = true;
@@ -327,12 +367,18 @@ ipcMain.handle('save-subtitle-file', async (event, filePath, content) => {
     // 保存文件
     await fs.promises.writeFile(filePath, content, 'utf8');
     console.log(`字幕文件保存成功: ${filePath}`);
+    
+    // 获取当前时间并发送保存成功消息
+    const saveTime = new Date().toLocaleString('zh-CN');
+    mainWindow.webContents.send('subtitle-saved', { saveTime });
+    
     return true;
   } catch (error) {
     console.error('保存字幕文件失败:', error);
     throw new Error(`保存字幕文件失败: ${error.message}`);
   }
 });
+
 
 // 添加打开字幕文件所在目录的处理函数
 ipcMain.handle('open-subtitle-directory', async (event, filePath) => {

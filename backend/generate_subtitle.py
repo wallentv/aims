@@ -289,8 +289,15 @@ def main():
     print(f"处理{'音频' if is_audio else '视频'}文件: {video_path}")
     sys.stdout.flush()
 
-    # 直接调用generate_subtitle，并传递is_audio和precision参数
-    generate_subtitle(video_path, target_language, output_format, args.model, precision, is_audio)
+    # 调用generate_subtitle，捕获返回值
+    output_file = generate_subtitle(video_path, target_language, output_format, args.model, precision, is_audio)
+    
+    # 再次确保发送完成信号
+    if output_file:
+        print(f"COMPLETE:{output_file}")
+        sys.stdout.flush()
+        print(f"字幕生成完成: {output_file}")
+        sys.stdout.flush()
 
 if __name__ == "__main__":
     main()

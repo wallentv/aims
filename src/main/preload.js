@@ -18,6 +18,12 @@ contextBridge.exposeInMainWorld('electron', {
   saveSubtitleFile: (filePath, content) => ipcRenderer.invoke('save-subtitle-file', filePath, content),
   // 添加打开字幕文件所在目录的功能
   openSubtitleDirectory: (filePath) => ipcRenderer.invoke('open-subtitle-directory', filePath),
+  // 添加保存字幕完成事件监听器
+  onSubtitleSaved: (callback) => {
+    ipcRenderer.on('subtitle-saved', (event, data) => {
+      callback(data);
+    });
+  },
   removeListener:() => {
     ipcRenderer.removeAllListeners('subtitle-progress');
     ipcRenderer.removeAllListeners('subtitle-complete');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import ProgressBar from './ProgressBar.jsx';
 
@@ -19,7 +19,7 @@ const TextArea = styled.textarea`
   font-family: monospace;
   resize: none;
   outline: none;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   
   &:focus {
@@ -134,6 +134,44 @@ const PathContainer = styled.div`
   flex: 1;
 `;
 
+const SaveNotification = styled.div`
+  background-color: rgba(46, 204, 113, 0.1);
+  padding: ${props => props.theme.spacing.small};
+  border-radius: ${props => props.theme.borderRadius};
+  color: #2ecc71;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+`;
+
+const SaveTime = styled.span`
+  font-weight: normal;
+  margin-left: 5px;
+`;
+
+const ActionButton = styled.button`
+  background-color: transparent;
+  color: ${props => props.theme.colors.secondary};
+  border: 1px solid ${props => props.theme.colors.secondary};
+  border-radius: ${props => props.theme.borderRadius};
+  padding: 4px 12px;
+  margin-left: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  
+  &:hover {
+    background-color: rgba(33, 134, 208, 0.1);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #606060;
+    color: #606060;
+  }
+`;
+
 function SubtitleEditor({ 
   subtitlePath, 
   isGenerating, 
@@ -147,30 +185,41 @@ function SubtitleEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [loadError, setLoadError] = useState(null);
-  const [loadAttempted, setLoadAttempted] = useState(false); // Track if we've tried to load
+  const [loadAttempted, setLoadAttempted] = useState(false); 
+  const [loadAttemptCount, setLoadAttemptCount] = useState(0);
+  const [lastSaveTime, setLastSaveTime] = useState(null);
+  const [showSaveNotification, setShowSaveNotification] = useState(false);
+  const loadedPathRef = useRef(null); // 用于跟踪已经加载过的路径
 
   // 当字幕路径变化时加载字幕内容
   useEffect(() => {
-    // 确保路径变化时重置加载状态
-    if (subtitlePath) {
+    // 只有当路径变化且和上次加载的路径不同时才重置加载状态
+    if (subtitlePath && subtitlePath !== loadedPathRef.current) {
+      console.log(`检测到新的字幕路径: ${subtitlePath}`);
       setLoadAttempted(false);
+      setLoadAttemptCount(0);
     }
     
     const loadSubtitle = async () => {
-      if (subtitlePath && !loadAttempted) {
+      // 只有在有路径、未尝试加载过、并且和已加载路径不同时才加载
+      if (subtitlePath && !loadAttempted && subtitlePath !== loadedPathRef.current) {
         console.log(`开始加载字幕文件: ${subtitlePath}`);
         setLoadAttempted(true);
+        setLoadAttemptCount(prev => prev + 1);
+        loadedPathRef.current = subtitlePath; // 记录当前加载的路径
         
         try {
           setLoadError(null);
           const subtitleContent = await window.electron.readSubtitleFile(subtitlePath);
-          console.log(`字幕内容已加载，长度: ${subtitleContent.length} 字符`);
+          console.log(`成功读取字幕文件，内容长度: ${subtitleContent.length} 字符`);
           setContent(subtitleContent);
           setMessage(`字幕已加载: ${subtitlePath}`);
         } catch (error) {
           console.error('加载字幕失败:', error);
           setLoadError(`加载字幕失败: ${error.message}`);
           setMessage(`加载字幕失败: ${error.message}`);
+          // 失败时清除已加载路径引用
+          loadedPathRef.current = null;
         }
       }
     };
@@ -178,14 +227,59 @@ function SubtitleEditor({
     loadSubtitle();
   }, [subtitlePath, loadAttempted]);
 
+  // 监听进度状态，处理100%完成但未加载字幕的情况
+  useEffect(() => {
+    // 当进度达到100%且有字幕路径但未成功加载时，尝试重新加载
+    if (progress === 100 && subtitlePath && 
+        (loadError || !content) && 
+        loadAttemptCount < 3 && 
+        subtitlePath !== loadedPathRef.current) {
+      console.log(`进度100%，但字幕未加载，尝试重新加载(${loadAttemptCount + 1}/3)`);
+      // 延迟1秒后重试
+      const timer = setTimeout(() => {
+        setLoadAttempted(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [progress, subtitlePath, loadError, content, loadAttemptCount]);
+
   // 监听生成完成状态，确保字幕加载
   useEffect(() => {
-    if (!isGenerating && subtitlePath && loadError) {
-      // 如果生成完成但加载失败，尝试重新加载
-      console.log('字幕生成已完成，但加载失败，尝试重新加载');
-      setLoadAttempted(false);
+    if (!isGenerating && subtitlePath) {
+      // 如果生成已完成且有字幕路径，但加载失败或内容为空，尝试重新加载
+      if ((loadError || !content) && loadAttemptCount < 3) {
+        console.log('字幕生成已完成，但加载失败或为空，尝试重新加载');
+        const timer = setTimeout(() => {
+          setLoadAttempted(false);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [isGenerating, subtitlePath, loadError]);
+  }, [isGenerating, subtitlePath, loadError, content, loadAttemptCount]);
+
+  // 监听保存完成事件
+  useEffect(() => {
+    const handleSubtitleSaved = (data) => {
+      console.log('字幕保存成功，时间：', data.saveTime);
+      setLastSaveTime(data.saveTime);
+      setShowSaveNotification(true);
+      
+      // 3秒后自动隐藏保存通知
+      const timer = setTimeout(() => {
+        setShowSaveNotification(false);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    };
+    
+    window.electron.onSubtitleSaved(handleSubtitleSaved);
+    
+    // 组件卸载时清除监听器
+    return () => {
+      // 这里无法直接删除特定的监听器，因为 electron API 没有提供移除单个监听器的方法
+      // 但可以在 removeListener 里添加移除该监听器的逻辑
+    };
+  }, []);
 
   const handleSave = async () => {
     if (!subtitlePath) return;
@@ -221,13 +315,11 @@ function SubtitleEditor({
     }
   };
 
-  // 手动重新加载字幕功能
-  const handleReloadSubtitle = async () => {
-    if (subtitlePath) {
-      console.log(`手动重新加载字幕: ${subtitlePath}`);
-      setLoadAttempted(false);
-    }
-  };
+  // 显示进度到100%时的完成状态
+  const isCompleted = progress === 100 && !isGenerating;
+  
+  // 处理加载中状态
+  const isLoading = subtitlePath && !content && !loadError && !isGenerating;
 
   return (
     <EditorContainer>
@@ -246,32 +338,27 @@ function SubtitleEditor({
         </ProcessingContainer>
       )}
       
+      {/* 处理已完成但未加载的情况 */}
+      {isCompleted && !content && !loadError && (
+        <StatusMessage>
+          <StatusLabel>加载中:</StatusLabel> 
+          <StatusValue>正在加载生成的字幕文件...</StatusValue>
+        </StatusMessage>
+      )}
+      
+      {/* 错误信息 */}
       {(error || loadError) && (
         <ErrorMessage>
           {error || loadError}
-          {loadError && subtitlePath && (
-            <OpenFolderButton onClick={handleReloadSubtitle} style={{ marginLeft: '10px' }}>
-              重试加载
-            </OpenFolderButton>
-          )}
         </ErrorMessage>
       )}
       
-      {message && !isGenerating && (
+      {/* 成功信息 */}
+      {message && !isGenerating && content && (
         <SuccessMessage>
           <PathContainer>
             {message}
           </PathContainer>
-          {subtitlePath && (
-            <div>
-              <OpenFolderButton onClick={openSubtitleFolder} style={{ marginRight: '5px' }}>
-                打开目录
-              </OpenFolderButton>
-              <OpenFolderButton onClick={handleReloadSubtitle}>
-                重新加载
-              </OpenFolderButton>
-            </div>
-          )}
         </SuccessMessage>
       )}
       
@@ -279,18 +366,37 @@ function SubtitleEditor({
       <TextArea 
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder={isGenerating ? "字幕生成中..." : subtitlePath ? "正在加载字幕..." : "字幕内容将显示在这里..."}
+        placeholder={
+          isGenerating ? "字幕生成中..." : 
+          isLoading ? "正在加载字幕..." : 
+          subtitlePath ? "加载字幕失败，请重试..." : 
+          "字幕内容将显示在这里..."
+        }
         disabled={isGenerating}
       />
       
-      {/* 按钮区域 */}
+      {/* 按钮区域 - 将所有按钮放在底部并统一样式 */}
       <ButtonContainer>
-        <Button 
-          onClick={handleSave} 
-          disabled={isGenerating || isSaving || !subtitlePath}
-        >
-          {isSaving ? '保存中...' : '保存修改'}
-        </Button>
+        {/* 保存成功提示 */}
+        {showSaveNotification && lastSaveTime && (
+          <SaveNotification>
+            <span>✓ 保存成功</span>
+            <SaveTime>保存时间: {lastSaveTime}</SaveTime>
+          </SaveNotification>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {subtitlePath && (
+            <ActionButton onClick={openSubtitleFolder}>
+              打开目录
+            </ActionButton>
+          )}
+          <ActionButton 
+            onClick={handleSave} 
+            disabled={isGenerating || isSaving || !subtitlePath || !content}
+          >
+            {isSaving ? '保存中...' : '保存'}
+          </ActionButton>
+        </div>
       </ButtonContainer>
     </EditorContainer>
   );

@@ -5,6 +5,7 @@ import FileSelector from './components/FileSelector.jsx';
 import SubtitleSettings from './components/SubtitleSettings.jsx';
 import ProgressBar from './components/ProgressBar.jsx';
 import SubtitleEditor from './components/SubtitleEditor.jsx';
+import SubtitleRevision from './components/SubtitleRevision.jsx';
 import SubtitleStateManager from './utils/SubtitleStateManager.js';
 
 // 主题配置 - 油管风格
@@ -55,7 +56,7 @@ const LogoIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 80px; // 修改为长条形宽度
+  width: 120px; // 修改为长条形宽度
   height: 35px; // 修改为适合长条形的高度
   background-color: ${props => props.theme.colors.primary};
   border-radius: ${props => props.theme.borderRadius};
@@ -147,6 +148,25 @@ const ConfigSection = styled.div`
   margin-bottom: ${props => props.theme.spacing.medium};
 `;
 
+// 添加选项卡组件样式
+const TabContainer = styled.div`
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+`;
+
+const Tab = styled.div`
+  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.medium};
+  cursor: pointer;
+  border-bottom: 2px solid ${props => props.active ? props.theme.colors.secondary : 'transparent'};
+  color: ${props => props.active ? props.theme.colors.secondary : props.theme.colors.text};
+  font-weight: ${props => props.active ? 500 : 400};
+  transition: all 0.2s;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+`;
+
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [subtitleSettings, setSubtitleSettings] = useState({
@@ -162,6 +182,9 @@ function App() {
     completed: false,
     completedPath: null
   });
+
+  // 添加选项卡状态
+  const [activeTab, setActiveTab] = useState('editor'); // 'editor' 或 'revision'
 
   // 初始化字幕状态管理器
   const [stateManager] = useState(
@@ -268,14 +291,21 @@ function App() {
     }
   };
 
+  // 处理应用修订
+  const handleApplyRevision = (revision) => {
+    // 这里应该根据实际情况处理字幕修订的应用逻辑
+    console.log('应用修订:', revision);
+    // 作为简单示例，我们仅记录修订信息
+    alert(`已应用修订: ${revision.originalText} -> ${revision.revisedText}`);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <AppContainer>
         <Header style={{ paddingLeft: 0 }}>
           <LogoIcon>
-            <span style={{ fontSize: '12px', color: 'white' }}>涡轮TV</span>
+            <span style={{ fontSize: '12px', color: 'white' }}>涡轮TV-AI字幕工具</span>
           </LogoIcon>
-          <Title>AI字幕生成</Title>
         </Header>
         
         <MainContent>
@@ -306,18 +336,43 @@ function App() {
           {/* 右侧字幕面板 */}
           <SubtitlePanel>
             <PanelHeader>
-              <PanelTitle>字幕编辑</PanelTitle>
+              <PanelTitle>字幕处理</PanelTitle>
             </PanelHeader>
+            
+            {/* 添加选项卡 */}
+            <TabContainer>
+              <Tab 
+                active={activeTab === 'editor'} 
+                onClick={() => setActiveTab('editor')}
+              >
+                字幕编辑
+              </Tab>
+              <Tab 
+                active={activeTab === 'revision'} 
+                onClick={() => setActiveTab('revision')}
+              >
+                字幕修订
+              </Tab>
+            </TabContainer>
+            
             <PanelContent>
-              <SubtitleEditor 
-                subtitlePath={subtitleState.completedPath} 
-                isGenerating={processing}
-                onSave={handleSaveSubtitle}
-                status={subtitleState.status}
-                progress={subtitleState.progress}
-                error={subtitleState.error}
-                stageText={processing ? stateManager.getStageText() : ''}
-              />
+              {activeTab === 'editor' ? (
+                <SubtitleEditor 
+                  subtitlePath={subtitleState.completedPath} 
+                  isGenerating={processing}
+                  onSave={handleSaveSubtitle}
+                  status={subtitleState.status}
+                  progress={subtitleState.progress}
+                  error={subtitleState.error}
+                  stageText={processing ? stateManager.getStageText() : ''}
+                />
+              ) : (
+                <SubtitleRevision 
+                  subtitlePath={subtitleState.completedPath}
+                  subtitleContent={subtitleState.completedPath ? '模拟字幕内容' : ''}
+                  onApplyRevision={handleApplyRevision}
+                />
+              )}
             </PanelContent>
           </SubtitlePanel>
         </MainContent>
