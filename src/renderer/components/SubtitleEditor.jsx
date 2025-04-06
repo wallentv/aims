@@ -106,28 +106,6 @@ const ErrorMessage = styled.div`
   border-left: 3px solid #ff6b6b;
 `;
 
-const SuccessMessage = styled(StatusMessage)`
-  border-left: 3px solid #2ecc71;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const OpenFolderButton = styled.button`
-  background-color: transparent;
-  color: ${props => props.theme.colors.secondary};
-  border: 1px solid ${props => props.theme.colors.secondary};
-  border-radius: ${props => props.theme.borderRadius};
-  padding: 2px 8px;
-  margin-left: 10px;
-  cursor: pointer;
-  font-size: 12px;
-  
-  &:hover {
-    background-color: rgba(33, 134, 208, 0.1);
-  }
-`;
-
 const PathContainer = styled.div`
   display: flex;
   align-items: center;
@@ -172,6 +150,68 @@ const ActionButton = styled.button`
   }
 `;
 
+// 简单进度显示组件
+const SimpleProgressDisplay = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: ${props => props.theme.spacing.medium};
+  
+  span {
+    font-size: 16px;
+    font-weight: bold;
+    color: ${props => props.theme.colors.secondary};
+    margin-top: 4px;
+  }
+`;
+
+// 统一进度显示组件，适用于所有状态
+const UnifiedProgressDisplay = styled.div`
+  background-color: ${props => props.theme.colors.surfaceLight};
+  padding: ${props => props.theme.spacing.small}; /* 减少内边距 */
+  border-radius: ${props => props.theme.borderRadius};
+  margin-bottom: ${props => props.theme.spacing.small}; /* 减少底部间距 */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+`;
+
+const StatusWrapper = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px; /* 减少间距 */
+`;
+
+const ProgressInfo = styled.div`
+  display: flex;
+  align-items: center;
+  font-size: 13px; /* 减小字体 */
+  color: ${props => props.theme.colors.secondary};
+  font-weight: 500;
+`;
+
+const ProgressValue = styled.span`
+  margin-left: auto;
+  font-weight: bold;
+`;
+
+// 简化的纯百分比进度显示
+const MinimalProgressDisplay = styled.div`
+  display: flex;
+  flex-direction: column;
+  margin-top: 0; /* 减少顶部间距 */
+  margin-bottom: ${props => props.theme.spacing.small}; /* 减少底部间距 */
+  
+  .progress-value {
+    font-size: 20px;
+    font-weight: bold;
+    color: ${props => props.theme.colors.secondary};
+    text-align: center;
+    margin: 6px 0;
+  }
+`;
+
 function SubtitleEditor({ 
   subtitlePath, 
   isGenerating, 
@@ -179,83 +219,16 @@ function SubtitleEditor({
   status,
   progress,
   error,
-  stageText
+  stageText,
+  content,
+  onContentChange
 }) {
-  const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [loadError, setLoadError] = useState(null);
-  const [loadAttempted, setLoadAttempted] = useState(false); 
-  const [loadAttemptCount, setLoadAttemptCount] = useState(0);
   const [lastSaveTime, setLastSaveTime] = useState(null);
   const [showSaveNotification, setShowSaveNotification] = useState(false);
-  const loadedPathRef = useRef(null); // 用于跟踪已经加载过的路径
-
-  // 当字幕路径变化时加载字幕内容 - 修复以确保路径变化时重新加载
-  useEffect(() => {
-    // 当字幕路径变化或生成完成时，重置加载状态，强制重新加载
-    if (subtitlePath) {
-      setLoadAttempted(false);
-      setLoadAttemptCount(0);
-    }
-    
-    const loadSubtitle = async () => {
-      // 只有在有路径、未尝试加载过、并且和已加载路径不同时才加载
-      if (subtitlePath && !loadAttempted && subtitlePath !== loadedPathRef.current) {
-        console.log(`开始加载字幕文件: ${subtitlePath}`);
-        setLoadAttempted(true);
-        setLoadAttemptCount(prev => prev + 1);
-        loadedPathRef.current = subtitlePath; // 记录当前加载的路径
-        
-        try {
-          setLoadError(null);
-          const subtitleContent = await window.electron.readSubtitleFile(subtitlePath);
-          console.log(`成功读取字幕文件，内容长度: ${subtitleContent.length} 字符`);
-          setContent(subtitleContent);
-          setMessage(`字幕已加载: ${subtitlePath}`);
-        } catch (error) {
-          console.error('加载字幕失败:', error);
-          setLoadError(`加载字幕失败: ${error.message}`);
-          setMessage(`加载字幕失败: ${error.message}`);
-          // 失败时清除已加载路径引用
-          loadedPathRef.current = null;
-        }
-      }
-    };
-    
-    loadSubtitle();
-  }, [subtitlePath, loadAttempted]);
-
-  // 监听进度状态，处理100%完成但未加载字幕的情况
-  useEffect(() => {
-    // 当进度达到100%且有字幕路径但未成功加载时，尝试重新加载
-    if (progress === 100 && subtitlePath && 
-        (loadError || !content) && 
-        loadAttemptCount < 3 && 
-        subtitlePath !== loadedPathRef.current) {
-      console.log(`进度100%，但字幕未加载，尝试重新加载(${loadAttemptCount + 1}/3)`);
-      // 延迟1秒后重试
-      const timer = setTimeout(() => {
-        setLoadAttempted(false);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [progress, subtitlePath, loadError, content, loadAttemptCount]);
-
-  // 监听生成完成状态，确保字幕加载
-  useEffect(() => {
-    if (!isGenerating && subtitlePath) {
-      // 如果生成已完成且有字幕路径，但加载失败或内容为空，尝试重新加载
-      if ((loadError || !content) && loadAttemptCount < 3) {
-        console.log('字幕生成已完成，但加载失败或为空，尝试重新加载');
-        const timer = setTimeout(() => {
-          setLoadAttempted(false);
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [isGenerating, subtitlePath, loadError, content, loadAttemptCount]);
-
+  
   // 监听保存完成事件
   useEffect(() => {
     const handleSubtitleSaved = (data) => {
@@ -276,18 +249,17 @@ function SubtitleEditor({
     // 组件卸载时清除监听器
     return () => {
       // 这里无法直接删除特定的监听器，因为 electron API 没有提供移除单个监听器的方法
-      // 但可以在 removeListener 里添加移除该监听器的逻辑
     };
   }, []);
 
   const handleSave = async () => {
-    if (!subtitlePath) return;
+    if (!subtitlePath || !content) return;
     
     setIsSaving(true);
     try {
       const success = await onSave(subtitlePath, content);
-      if (success) {
-        setMessage(`字幕已保存: ${subtitlePath}`);
+      if (!success) {
+        setMessage('保存字幕失败');
       }
     } catch (error) {
       console.error('保存字幕失败:', error);
@@ -318,27 +290,43 @@ function SubtitleEditor({
   const isCompleted = progress === 100 && !isGenerating;
   
   // 处理加载中状态
-  const isLoading = subtitlePath && !content && !loadError && !isGenerating;
+  const isLoading = subtitlePath && !content && !isGenerating;
+
+  // 检查是否在转录阶段，此时只显示百分比
+  const isTranscribingStage = isGenerating && status && status.includes('开始转录音频');
+
+  // 获取当前应该显示的状态文本
+  const getCurrentStatusText = () => {
+    if (!stageText) return '处理中...';
+    return stageText;
+  };
 
   return (
     <EditorContainer>
-      {/* 显示进度和状态 - 只保留一个状态显示区域 */}
+      {/* 根据不同状态显示不同的UI，并优化显示内容，去掉冗余标题 */}
       {isGenerating && (
-        <ProcessingContainer>
-          <StatusMessage>
-            <StatusLabel>当前状态:</StatusLabel> 
-            <StatusValue>{stageText || '准备中...'}</StatusValue>
-          </StatusMessage>
-          <ProgressBar progress={progress} />
-          <ProgressText>
-            <span>进度:</span>
-            <span>{progress}%</span>
-          </ProgressText>
-        </ProcessingContainer>
+        isTranscribingStage ? (
+          // 转录阶段，最小化显示，只有百分比
+          <MinimalProgressDisplay>
+            <ProgressBar progress={progress} />
+            <div className="progress-value">{progress}%</div>
+          </MinimalProgressDisplay>
+        ) : (
+          // 其他阶段，显示状态和进度，更加紧凑
+          <UnifiedProgressDisplay>
+            <StatusWrapper>
+              <ProgressInfo>
+                {getCurrentStatusText()}
+                <ProgressValue>{progress}%</ProgressValue>
+              </ProgressInfo>
+            </StatusWrapper>
+            <ProgressBar progress={progress} />
+          </UnifiedProgressDisplay>
+        )
       )}
       
-      {/* 处理已完成但未加载的情况 */}
-      {isCompleted && !content && !loadError && (
+      {/* 处理已完成但未加载的情况 - 精简显示 */}
+      {isCompleted && !content && (
         <StatusMessage>
           <StatusLabel>加载中:</StatusLabel> 
           <StatusValue>正在加载生成的字幕文件...</StatusValue>
@@ -352,19 +340,10 @@ function SubtitleEditor({
         </ErrorMessage>
       )}
       
-      {/* 成功信息 */}
-      {message && !isGenerating && content && (
-        <SuccessMessage>
-          <PathContainer>
-            {message}
-          </PathContainer>
-        </SuccessMessage>
-      )}
-      
       {/* 编辑区域 */}
       <TextArea 
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
+        value={content || ''}
+        onChange={(e) => onContentChange && onContentChange(e.target.value)}
         placeholder={
           isGenerating ? "字幕生成中..." : 
           isLoading ? "正在加载字幕..." : 

@@ -2,30 +2,30 @@ import React from 'react';
 import styled from 'styled-components';
 
 const Container = styled.div`
-  margin-bottom: ${props => props.theme.spacing.medium};
+  margin-bottom: ${props => props.theme.spacing.small};
 `;
 
 const SettingsGrid = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${props => props.theme.spacing.medium};
+  gap: ${props => props.theme.spacing.small}; /* 减小间距 */
 `;
 
 const Group = styled.div`
   background-color: ${props => props.theme.colors.surfaceLight};
-  padding: ${props => props.theme.spacing.medium};
+  padding: ${props => props.theme.spacing.small}; /* 减小内边距 */
   border-radius: ${props => props.theme.borderRadius};
 `;
 
 const OptionsTable = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: ${props => props.theme.spacing.small};
-  margin-top: ${props => props.theme.spacing.small};
+  gap: 4px; /* 进一步减小间距 */
+  margin-top: 4px; /* 减小上边距 */
 `;
 
 const OptionButton = styled.button`
-  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.medium};
+  padding: 4px 8px; /* 固定较小的内边距 */
   background-color: ${props => props.theme.colors.surface};
   color: ${props => 
     props.selected ? props.theme.colors.secondary : props.theme.colors.text};
@@ -35,9 +35,10 @@ const OptionButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   flex: 1;
-  min-width: 80px;
+  min-width: 60px; /* 减小最小宽度 */
   text-align: center;
   font-weight: ${props => props.selected ? '500' : '400'};
+  font-size: 11px; /* 减小字体大小 */
   
   &:hover {
     background-color: #383838;
@@ -46,11 +47,11 @@ const OptionButton = styled.button`
 `;
 
 const GroupTitle = styled.h3`
-  font-size: 13px;
+  font-size: 12px; /* 减小字体大小 */
   font-weight: 400;
   text-align: left;
   margin-top: 0;
-  margin-bottom: ${props => props.theme.spacing.small};
+  margin-bottom: 4px; /* 减小下边距 */
   color: ${props => props.theme.colors.textSecondary};
   opacity: 0.8;
 `;

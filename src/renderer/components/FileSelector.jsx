@@ -2,26 +2,26 @@ import React from 'react';
 import styled from 'styled-components';
 
 const Container = styled.div`
-  margin-bottom: ${props => props.theme.spacing.medium};
+  margin-bottom: ${props => props.theme.spacing.small}; /* 减小下边距 */
 `;
 
 const FileButton = styled.button`
-  background-color: #1890ff; /* 蓝色替代 ${props => props.theme.colors.primary} */
+  background-color: #1890ff;
   color: white;
   border: none;
   border-radius: ${props => props.theme.borderRadius};
-  padding: ${props => props.theme.spacing.medium};
+  padding: ${props => props.theme.spacing.small}; /* 减小按钮内边距 */
   width: 100%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 12px; /* 减小字体大小 */
   font-weight: 500;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
   
   &:hover {
-    background-color: #0066cc; /* 深蓝色替代 #cc0000 */
+    background-color: #0066cc;
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   }
@@ -34,23 +34,23 @@ const FileButton = styled.button`
 
 const FileIcon = styled.span`
   margin-right: ${props => props.theme.spacing.small};
-  font-size: 22px; /* 增加字体大小 */
+  font-size: 18px; /* 减小图标大小 */
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
   position: relative;
-  top: -3px; /* 微调垂直位置 */
+  top: -2px;
 `;
 
 const SelectedFile = styled.div`
-  margin-top: 8px;
-  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.medium};
+  margin-top: 6px; /* 减小上边距 */
+  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.small}; /* 减小内边距 */
   background-color: ${props => props.theme.colors.surfaceLight};
   border-radius: ${props => props.theme.borderRadius};
-  border-left: 3px solid ${props => props.theme.colors.primary};
+  border-left: 2px solid ${props => props.theme.colors.primary}; /* 减小边框宽度 */
   word-break: break-all;
-  font-size: 13px;
+  font-size: 11px; /* 减小字体大小 */
 `;
 
 function FileSelector({ selectedFile, onSelectFile, label = "选择视频文件" }) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { ThemeProvider } from 'styled-components';
 import FileSelector from './components/FileSelector.jsx';
@@ -44,32 +44,6 @@ const AppContainer = styled.div`
   flex-direction: column;
 `;
 
-const Header = styled.header`
-  display: flex;
-  align-items: center;
-  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.large};
-  margin-bottom: ${props => props.theme.spacing.medium};
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-`;
-
-const LogoIcon = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 120px; // 修改为长条形宽度
-  height: 35px; // 修改为适合长条形的高度
-  background-color: ${props => props.theme.colors.primary};
-  border-radius: ${props => props.theme.borderRadius};
-  margin-right: ${props => props.theme.spacing.small};
-`;
-
-const Title = styled.h1`
-  color: ${props => props.theme.colors.text};
-  font-size: 16px; // 修改：将标题文字变小
-  font-weight: 500;
-  margin: 0;
-`;
-
 const MainContent = styled.div`
   display: flex;
   flex: 1;
@@ -78,7 +52,7 @@ const MainContent = styled.div`
 `;
 
 const ConfigPanel = styled.div`
-  flex: 1;
+  flex: 0.7; /* 减小左侧配置面板的比例，从1变为0.7 */
   background-color: ${props => props.theme.colors.surface};
   border-radius: ${props => props.theme.borderRadius};
   display: flex;
@@ -87,7 +61,7 @@ const ConfigPanel = styled.div`
 `;
 
 const SubtitlePanel = styled.div`
-  flex: 2;
+  flex: 2.3; /* 增加右侧字幕面板的比例，从2变为2.3 */
   background-color: ${props => props.theme.colors.surface};
   border-radius: ${props => props.theme.borderRadius};
   display: flex;
@@ -95,19 +69,19 @@ const SubtitlePanel = styled.div`
 `;
 
 const PanelHeader = styled.div`
-  padding: ${props => props.theme.spacing.medium};
+  padding: ${props => props.theme.spacing.small}; /* 减小内边距 */
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
 const PanelContent = styled.div`
-  padding: ${props => props.theme.spacing.medium};
+  padding: ${props => props.theme.spacing.small}; /* 减小内边距 */
   flex: 1;
   overflow-y: auto;
 `;
 
 const PanelTitle = styled.h2`
   margin: 0;
-  font-size: 16px;
+  font-size: 14px; /* 减小标题字体大小 */
   font-weight: 500;
   color: ${props => props.theme.colors.text};
 `;
@@ -117,12 +91,12 @@ const GenerateButton = styled.button`
   color: white;
   border: none;
   border-radius: ${props => props.theme.borderRadius};
-  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.medium};
-  font-size: 14px;
+  padding: 6px 12px; /* 减小内边距 */
+  font-size: 13px; /* 减小字体大小 */
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  margin-top: ${props => props.theme.spacing.medium};
+  margin-top: ${props => props.theme.spacing.small}; /* 减小上边距 */
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   
   &:hover {
@@ -145,22 +119,24 @@ const GenerateButton = styled.button`
 `;
 
 const ConfigSection = styled.div`
-  margin-bottom: ${props => props.theme.spacing.medium};
+  margin-bottom: ${props => props.theme.spacing.small}; /* 减小下边距 */
 `;
 
 // 添加选项卡组件样式
 const TabContainer = styled.div`
   display: flex;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.small} 0;
 `;
 
 const Tab = styled.div`
-  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.medium};
+  padding: 6px 16px; /* 增加选项卡内边距使其更突出 */
   cursor: pointer;
   border-bottom: 2px solid ${props => props.active ? props.theme.colors.secondary : 'transparent'};
   color: ${props => props.active ? props.theme.colors.secondary : props.theme.colors.text};
-  font-weight: ${props => props.active ? 500 : 400};
+  font-weight: ${props => props.active ? 600 : 400};
   transition: all 0.2s;
+  font-size: 14px; /* 增大选项卡字体大小 */
   
   &:hover {
     background-color: rgba(255, 255, 255, 0.05);
@@ -186,6 +162,18 @@ function App() {
   // 添加选项卡状态
   const [activeTab, setActiveTab] = useState('editor'); // 'editor' 或 'revision'
 
+  // 添加字幕内容状态 - 分离编辑器和修订的内容
+  const [editorContent, setEditorContent] = useState('');  // 用于编辑器标签页
+  const [revisionContent, setRevisionContent] = useState(''); // 用于修订标签页
+  const [revisionPath, setRevisionPath] = useState(null);
+  
+  // 保留原始内容引用，仅用于初始加载
+  const initialContentRef = useRef('');
+  
+  // 标记各标签内容是否已加载
+  const [editorContentLoaded, setEditorContentLoaded] = useState(false);
+  const [revisionContentLoaded, setRevisionContentLoaded] = useState(false);
+
   // 初始化字幕状态管理器
   const [stateManager] = useState(
     () => new SubtitleStateManager(
@@ -201,6 +189,17 @@ function App() {
           completed: true,
           completedPath: path
         }));
+        
+        // 生成修订文件路径
+        const revPath = generateRevisionPath(path);
+        setRevisionPath(revPath);
+        
+        // 重置内容加载状态
+        setEditorContentLoaded(false);
+        setRevisionContentLoaded(false);
+        
+        // 加载原始字幕文件内容
+        loadSubtitleContent(path, 'editor');
       },
       // 错误回调
       (error) => {
@@ -259,6 +258,46 @@ function App() {
     };
   }, [stateManager]);
 
+  // 生成修订字幕的路径
+  const generateRevisionPath = (originalPath) => {
+    if (!originalPath) return null;
+    
+    const lastDotIndex = originalPath.lastIndexOf('.');
+    if (lastDotIndex === -1) return originalPath + '-revised';
+    
+    const extension = originalPath.substring(lastDotIndex);
+    const basePath = originalPath.substring(0, lastDotIndex);
+    
+    return basePath + '-revised' + extension;
+  };
+
+  // 加载字幕内容 - 区分加载到哪个标签页
+  const loadSubtitleContent = async (path, targetTab = null) => {
+    if (!path) return;
+    
+    try {
+      console.log(`尝试加载字幕文件: ${path} 到${targetTab || activeTab}标签`);
+      const content = await window.electron.readSubtitleFile(path);
+      console.log(`成功读取字幕文件，内容长度: ${content.length} 字符`);
+      
+      // 根据目标标签页或当前活动标签页决定内容去向
+      const targetTabToLoad = targetTab || activeTab;
+      
+      // 更新相应的内容状态
+      if (targetTabToLoad === 'editor') {
+        setEditorContent(content);
+        setEditorContentLoaded(true);
+        // 保存初始内容以便修订标签初始化使用
+        initialContentRef.current = content;
+      } else if (targetTabToLoad === 'revision') {
+        setRevisionContent(content);
+        setRevisionContentLoaded(true);
+      }
+    } catch (error) {
+      console.error(`加载${path}字幕内容失败:`, error);
+    }
+  };
+
   const handleGenerate = () => {
     if (!selectedFile) {
       stateManager.setError('请选择一个视频文件');
@@ -267,6 +306,13 @@ function App() {
 
     setProcessing(true);
     stateManager.reset();
+    
+    // 重置内容和初始化状态
+    setEditorContent('');
+    setRevisionContent('');
+    setEditorContentLoaded(false);
+    setRevisionContentLoaded(false);
+    initialContentRef.current = '';
 
     const params = {
       videoPath: selectedFile,
@@ -279,10 +325,12 @@ function App() {
     window.electron.generateSubtitle(params);
   };
 
-  // 保存编辑后的字幕
+  // 保存编辑后的字幕 - 只更新编辑标签页内容
   const handleSaveSubtitle = async (path, content) => {
     try {
       await window.electron.saveSubtitleFile(path, content);
+      // 只更新编辑器内容，不影响修订内容
+      setEditorContent(content);
       return true;
     } catch (error) {
       console.error('保存字幕失败:', error);
@@ -291,23 +339,75 @@ function App() {
     }
   };
 
-  // 处理应用修订
-  const handleApplyRevision = (revision) => {
-    // 这里应该根据实际情况处理字幕修订的应用逻辑
-    console.log('应用修订:', revision);
-    // 作为简单示例，我们仅记录修订信息
-    alert(`已应用修订: ${revision.originalText} -> ${revision.revisedText}`);
+  // 保存修订版字幕 - 只更新修订标签页内容
+  const handleSaveRevision = async (path, content) => {
+    try {
+      await window.electron.saveSubtitleFile(path, content);
+      // 只更新修订内容，不影响编辑器内容
+      setRevisionContent(content);
+      return true;
+    } catch (error) {
+      console.error('保存修订字幕失败:', error);
+      return false;
+    }
   };
+
+  // 处理标签切换
+  const handleTabChange = (tabName) => {
+    setActiveTab(tabName);
+    
+    // 如果切换到的标签内容尚未加载，则加载对应的内容
+    if (tabName === 'editor' && !editorContentLoaded && subtitleState.completedPath) {
+      loadSubtitleContent(subtitleState.completedPath, 'editor');
+    }
+    else if (tabName === 'revision' && !revisionContentLoaded) {
+      // 对于修订标签，尝试加载修订文件，如果不存在则初始化为原始内容
+      if (revisionPath) {
+        // 先尝试检查修订文件是否存在
+        window.electron.readSubtitleFile(revisionPath)
+          .then(content => {
+            // 如果成功读取到修订文件内容
+            setRevisionContent(content);
+            setRevisionContentLoaded(true);
+          })
+          .catch(() => {
+            // 如果修订文件不存在或无法读取，使用原内容初始化修订内容
+            if (initialContentRef.current) {
+              setRevisionContent(initialContentRef.current);
+              setRevisionContentLoaded(true);
+            } else if (subtitleState.completedPath) {
+              // 尝试从原始文件加载
+              loadSubtitleContent(subtitleState.completedPath, 'revision');
+            }
+          });
+      } else if (subtitleState.completedPath) {
+        // 如果没有修订文件路径，直接使用原始内容
+        if (initialContentRef.current) {
+          setRevisionContent(initialContentRef.current);
+          setRevisionContentLoaded(true);
+        } else {
+          loadSubtitleContent(subtitleState.completedPath, 'revision');
+        }
+      }
+    }
+  };
+
+  // 当字幕生成完成时，自动加载对应标签的内容
+  useEffect(() => {
+    if (subtitleState.completed && subtitleState.completedPath) {
+      if (activeTab === 'editor' && !editorContentLoaded) {
+        loadSubtitleContent(subtitleState.completedPath, 'editor');
+      } else if (activeTab === 'revision' && !revisionContentLoaded) {
+        // 先尝试加载修订文件，如果不存在则使用原始内容
+        const pathToTry = revisionPath || subtitleState.completedPath;
+        loadSubtitleContent(pathToTry, 'revision');
+      }
+    }
+  }, [subtitleState.completed, subtitleState.completedPath, activeTab, editorContentLoaded, revisionContentLoaded, revisionPath]);
 
   return (
     <ThemeProvider theme={theme}>
       <AppContainer>
-        <Header style={{ paddingLeft: 0 }}>
-          <LogoIcon>
-            <span style={{ fontSize: '12px', color: 'white' }}>涡轮TV-AI字幕工具</span>
-          </LogoIcon>
-        </Header>
-        
         <MainContent>
           {/* 左侧配置面板 */}
           <ConfigPanel>
@@ -335,21 +435,17 @@ function App() {
           
           {/* 右侧字幕面板 */}
           <SubtitlePanel>
-            <PanelHeader>
-              <PanelTitle>字幕处理</PanelTitle>
-            </PanelHeader>
-            
-            {/* 添加选项卡 */}
+            {/* 把选项卡移到顶部，作为主标题 */}
             <TabContainer>
               <Tab 
                 active={activeTab === 'editor'} 
-                onClick={() => setActiveTab('editor')}
+                onClick={() => handleTabChange('editor')}
               >
                 字幕编辑
               </Tab>
               <Tab 
                 active={activeTab === 'revision'} 
-                onClick={() => setActiveTab('revision')}
+                onClick={() => handleTabChange('revision')}
               >
                 字幕修订
               </Tab>
@@ -365,12 +461,16 @@ function App() {
                   progress={subtitleState.progress}
                   error={subtitleState.error}
                   stageText={processing ? stateManager.getStageText() : ''}
+                  content={editorContent}
+                  onContentChange={setEditorContent}
                 />
               ) : (
                 <SubtitleRevision 
-                  subtitlePath={subtitleState.completedPath}
-                  subtitleContent={subtitleState.completedPath ? '模拟字幕内容' : ''}
-                  onApplyRevision={handleApplyRevision}
+                  subtitlePath={revisionPath || subtitleState.completedPath}
+                  initialContent={initialContentRef.current}
+                  content={revisionContent}
+                  onContentChange={setRevisionContent}
+                  onSaveRevision={handleSaveRevision}
                 />
               )}
             </PanelContent>

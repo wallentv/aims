@@ -48,8 +48,8 @@ function isWhisperModelDownloaded(modelName = 'base') {
 const createWindow = async () => {
   // 创建浏览器窗口
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 700,
+    width: 1200,
+    height: 800,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: true,
@@ -57,7 +57,7 @@ const createWindow = async () => {
     },
     backgroundColor: '#222',
     show: false,
-    title: "AI字幕生成",
+    title: "涡轮TV-AI字幕",
   });
 
   if (isDev) {
@@ -74,8 +74,8 @@ const createWindow = async () => {
 
     mainWindow.loadURL('http://localhost:3000');
 
-    // 打开开发者工具
-    mainWindow.webContents.openDevTools();
+    // 注释掉或删除开发者工具的自动打开功能
+    // mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../build/index.html'));
   }
@@ -169,7 +169,8 @@ ipcMain.handle('generate-subtitle', async (event, params) => {
   const modelDownloaded = isWhisperModelDownloaded(modelSize);
   if (!modelDownloaded) {
     console.log(`Whisper模型尚未下载，将在首次运行时自动下载`);
-    mainWindow.webContents.send('subtitle-status', `Whisper ${modelSize} 模型尚未下载，将在首次运行时自动下载，请保持网络连接并耐心等待。`);
+    // 注释掉或简化模型下载提醒
+    // mainWindow.webContents.send('subtitle-status', `Whisper ${modelSize} 模型尚未下载，将在首次运行时自动下载，请保持网络连接并耐心等待。`);
   }
 
   // 准备启动参数 - 修改参数传递方式
@@ -202,6 +203,7 @@ ipcMain.handle('generate-subtitle', async (event, params) => {
 
   let progress = 0;
   let isDownloadingModel = false;
+  let isTranscribing = false; // 标记是否已进入转录阶段
 
   // 监听Python输出的进度
   pythonProcess.stdout.on('data', (data) => {
@@ -266,15 +268,34 @@ ipcMain.handle('generate-subtitle', async (event, params) => {
       // 检测到模型下载信息
       isDownloadingModel = true;
       console.log(`正在下载Whisper模型: ${message}`);
-      mainWindow.webContents.send('subtitle-status', `正在下载Whisper模型，请耐心等待...`);
+      // 只在控制台记录，不发送到前端
     } else {
       // 将一些重要信息发送到渲染进程
       console.log(`Python输出: ${message}`);
       
-      // 将包含关键词的状态信息发送给渲染进程
-      const statusKeywords = ['正在加载', '提取音频', '开始转录', '视频时长', '生成字幕', '下载模型'];
-      if (statusKeywords.some(keyword => message.includes(keyword)) || isDownloadingModel) {
+      // 检查是否已经进入转录阶段
+      if (message.includes('开始转录音频')) {
+        isTranscribing = true; 
+        console.log('已进入转录阶段，后续将只显示进度百分比');
+        // 发送一次初始状态，然后后续只发送进度
+        mainWindow.webContents.send('subtitle-status', '开始转录音频...');
+      }
+      
+      // 如果已经进入转录阶段，不再发送状态文本
+      if (isTranscribing) {
+        // 在控制台记录但不发送到前端
+        return;
+      }
+      
+      // 对于转录前的阶段，继续发送状态更新
+      const initialStageKeywords = ['提取音频', '音频提取完成', '视频时长', '媒体时长'];
+      if (initialStageKeywords.some(keyword => message.includes(keyword))) {
         mainWindow.webContents.send('subtitle-status', message);
+      }
+      
+      // 如果是模型相关消息，不发送到前端
+      if (message.includes('正在加载模型') || message.includes('whisper') || isDownloadingModel) {
+        console.log('模型相关操作:', message);
       }
     }
   });
@@ -370,6 +391,7 @@ ipcMain.handle('save-subtitle-file', async (event, filePath, content) => {
     
     // 获取当前时间并发送保存成功消息
     const saveTime = new Date().toLocaleString('zh-CN');
+    // 只发送一次保存成功通知，移除了重复的通知
     mainWindow.webContents.send('subtitle-saved', { saveTime });
     
     return true;
