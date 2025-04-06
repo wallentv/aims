@@ -191,11 +191,10 @@ function SubtitleEditor({
   const [showSaveNotification, setShowSaveNotification] = useState(false);
   const loadedPathRef = useRef(null); // 用于跟踪已经加载过的路径
 
-  // 当字幕路径变化时加载字幕内容
+  // 当字幕路径变化时加载字幕内容 - 修复以确保路径变化时重新加载
   useEffect(() => {
-    // 只有当路径变化且和上次加载的路径不同时才重置加载状态
-    if (subtitlePath && subtitlePath !== loadedPathRef.current) {
-      console.log(`检测到新的字幕路径: ${subtitlePath}`);
+    // 当字幕路径变化或生成完成时，重置加载状态，强制重新加载
+    if (subtitlePath) {
       setLoadAttempted(false);
       setLoadAttemptCount(0);
     }
@@ -223,7 +222,7 @@ function SubtitleEditor({
         }
       }
     };
-
+    
     loadSubtitle();
   }, [subtitlePath, loadAttempted]);
 
