@@ -363,7 +363,7 @@ ipcMain.handle('read-subtitle-file', async (event, filePath) => {
   }
 });
 
-ipcMain.handle('save-subtitle-file', async (event, filePath, content) => {
+ipcMain.handle('save-subtitle-file', async (event, filePath, content, summary) => {
   try {
     // 验证参数
     if (!filePath || typeof filePath !== 'string') {
@@ -391,8 +391,8 @@ ipcMain.handle('save-subtitle-file', async (event, filePath, content) => {
     
     // 获取当前时间并发送保存成功消息
     const saveTime = new Date().toLocaleString('zh-CN');
-    // 只发送一次保存成功通知，移除了重复的通知
-    mainWindow.webContents.send('subtitle-saved', { saveTime });
+    // 包含summary参数在保存成功的消息中
+    mainWindow.webContents.send('subtitle-saved', { saveTime, summary });
     
     return true;
   } catch (error) {
@@ -400,7 +400,6 @@ ipcMain.handle('save-subtitle-file', async (event, filePath, content) => {
     throw new Error(`保存字幕文件失败: ${error.message}`);
   }
 });
-
 
 // 添加打开字幕文件所在目录的处理函数
 ipcMain.handle('open-subtitle-directory', async (event, filePath) => {

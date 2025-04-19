@@ -143,6 +143,75 @@ const Tab = styled.div`
   }
 `;
 
+// 添加提示框样式
+const NotificationOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+`;
+
+const NotificationBox = styled.div`
+  background-color: ${props => props.theme.colors.surface};
+  border-radius: ${props => props.theme.borderRadius};
+  padding: ${props => props.theme.spacing.large};
+  max-width: 600px;
+  min-width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  text-align: left;
+  animation: fadeIn 0.3s ease-out;
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+
+const NotificationTitle = styled.h3`
+  margin: 0 0 ${props => props.theme.spacing.medium};
+  color: ${props => props.theme.colors.text};
+  text-align: center;
+  font-size: 18px;
+`;
+
+const NotificationContent = styled.div`
+  margin-bottom: ${props => props.theme.spacing.medium};
+  line-height: 1.5;
+  color: ${props => props.theme.colors.text};
+  font-size: 14px;
+  
+  p {
+    margin: 0.5em 0;
+  }
+`;
+
+const NotificationButton = styled.button`
+  background-color: ${props => props.theme.colors.secondary};
+  color: white;
+  border: none;
+  border-radius: ${props => props.theme.borderRadius};
+  padding: 8px 16px;
+  margin-top: ${props => props.theme.spacing.medium};
+  cursor: pointer;
+  font-size: 14px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  
+  &:hover {
+    background-color: #2186d0;
+  }
+`;
+
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [subtitleSettings, setSubtitleSettings] = useState({
@@ -167,12 +236,26 @@ function App() {
   const [revisionContent, setRevisionContent] = useState(''); // 用于修订标签页
   const [revisionPath, setRevisionPath] = useState(null);
   
+  // 添加字幕是否自动发现的状态
+  const [subtitleFound, setSubtitleFound] = useState(false);
+  
   // 保留原始内容引用，仅用于初始加载
   const initialContentRef = useRef('');
   
   // 标记各标签内容是否已加载
   const [editorContentLoaded, setEditorContentLoaded] = useState(false);
   const [revisionContentLoaded, setRevisionContentLoaded] = useState(false);
+  
+  // 保存当前修订总结
+  const [currentSummary, setCurrentSummary] = useState('');
+
+  // 添加提示框状态
+  const [notification, setNotification] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    content: ''
+  });
 
   // 初始化字幕状态管理器
   const [stateManager] = useState(
@@ -209,6 +292,99 @@ function App() {
     )
   );
 
+  // 根据视频文件路径获取可能的字幕文件路径
+  const getPossibleSubtitlePaths = (videoPath) => {
+    if (!videoPath) return [];
+    
+    // 获取文件名部分（不带扩展名）
+    const lastSlashIndex = videoPath.lastIndexOf('/') !== -1 ? 
+                          videoPath.lastIndexOf('/') : 
+                          videoPath.lastIndexOf('\\');
+    const lastDotIndex = videoPath.lastIndexOf('.');
+    
+    // 如果没有扩展名，使用整个文件名
+    if (lastDotIndex === -1 || lastDotIndex < lastSlashIndex) {
+      const dirPath = videoPath.substring(0, lastSlashIndex + 1);
+      const fileName = videoPath.substring(lastSlashIndex + 1);
+      return [
+        `${dirPath}${fileName}.srt`,
+        `${dirPath}${fileName}.vtt`
+      ];
+    }
+    
+    // 提取基本文件名（不带扩展名）
+    const dirPath = videoPath.substring(0, lastSlashIndex + 1);
+    const fileName = videoPath.substring(lastSlashIndex + 1, lastDotIndex);
+    
+    // 返回常见的字幕文件可能性
+    return [
+      `${dirPath}${fileName}.srt`,
+      `${dirPath}${fileName}.vtt` 
+    ];
+  };
+  
+  // 检查字幕文件是否存在并加载
+  const checkAndLoadSubtitles = async (videoPath) => {
+    if (!videoPath) return;
+    
+    try {
+      const possiblePaths = getPossibleSubtitlePaths(videoPath);
+      let foundSubtitlePath = null;
+      
+      // 检查每个可能的路径
+      for (const path of possiblePaths) {
+        try {
+          // 尝试读取文件，如果成功则表示文件存在
+          await window.electron.readSubtitleFile(path);
+          foundSubtitlePath = path;
+          break;
+        } catch (error) {
+          // 文件不存在，继续检查下一个
+          console.log(`字幕文件不存在: ${path}`);
+        }
+      }
+      
+      if (foundSubtitlePath) {
+        console.log(`找到字幕文件: ${foundSubtitlePath}`);
+        // 更新状态以反映找到的字幕文件
+        setSubtitleState(prev => ({
+          ...prev,
+          completed: true,
+          completedPath: foundSubtitlePath
+        }));
+        
+        // 设置已找到字幕文件的标志
+        setSubtitleFound(true);
+        
+        // 生成修订文件路径
+        const revPath = generateRevisionPath(foundSubtitlePath);
+        setRevisionPath(revPath);
+        
+        // 重置内容加载状态
+        setEditorContentLoaded(false);
+        setRevisionContentLoaded(false);
+        
+        // 加载字幕内容
+        loadSubtitleContent(foundSubtitlePath, 'editor');
+        
+        // 检查修订文件是否存在
+        try {
+          await window.electron.readSubtitleFile(revPath);
+          // 如果修订文件存在，加载它
+          loadSubtitleContent(revPath, 'revision');
+        } catch (error) {
+          // 修订文件不存在，暂不处理
+        }
+      } else {
+        // 未找到字幕文件，重置状态
+        setSubtitleFound(false);
+      }
+    } catch (error) {
+      console.error('检查字幕文件时出错:', error);
+      setSubtitleFound(false);
+    }
+  };
+
   // 处理视频文件选择
   const handleVideoSourceSelect = async () => {
     try {
@@ -216,6 +392,10 @@ function App() {
       if (path) {
         setSelectedFile(path);
         setSubtitleState(prev => ({ ...prev, error: null }));
+        setSubtitleFound(false); // 重置字幕发现状态
+        
+        // 检查是否已经有对应的字幕文件
+        await checkAndLoadSubtitles(path);
       }
     } catch (err) {
       console.error('选择视频文件时出错:', err);
@@ -307,6 +487,9 @@ function App() {
     setProcessing(true);
     stateManager.reset();
     
+    // 重置字幕发现状态
+    setSubtitleFound(false);
+    
     // 重置内容和初始化状态
     setEditorContent('');
     setRevisionContent('');
@@ -339,17 +522,29 @@ function App() {
     }
   };
 
+  // 更新当前的修订总结
+  const handleSummaryUpdate = (summary) => {
+    setCurrentSummary(summary);
+  };
+
   // 保存修订版字幕 - 只更新修订标签页内容
-  const handleSaveRevision = async (path, content) => {
+  const handleSaveRevision = async (path, content, summary) => {
     try {
-      await window.electron.saveSubtitleFile(path, content);
+      // 添加摘要参数到保存事件中，使其能被监听器接收
+      await window.electron.saveSubtitleFile(path, content, summary);
       // 只更新修订内容，不影响编辑器内容
       setRevisionContent(content);
       return true;
     } catch (error) {
       console.error('保存修订字幕失败:', error);
+      stateManager.setError(`保存修订字幕失败: ${error.message}`);
       return false;
     }
+  };
+
+  // 关闭提示框
+  const closeNotification = () => {
+    setNotification(prev => ({ ...prev, visible: false }));
   };
 
   // 处理标签切换
@@ -405,6 +600,19 @@ function App() {
     }
   }, [subtitleState.completed, subtitleState.completedPath, activeTab, editorContentLoaded, revisionContentLoaded, revisionPath]);
 
+  // 标签切换时，确保自动加载当前标签对应的内容
+  useEffect(() => {
+    if (subtitleState.completedPath) {
+      if (activeTab === 'editor' && !editorContentLoaded) {
+        loadSubtitleContent(subtitleState.completedPath, 'editor');
+      } else if (activeTab === 'revision' && !revisionContentLoaded) {
+        // 先尝试加载修订文件，如果不存在则使用原始内容
+        const pathToTry = revisionPath || subtitleState.completedPath;
+        loadSubtitleContent(pathToTry, 'revision');
+      }
+    }
+  }, [activeTab]);
+
   return (
     <ThemeProvider theme={theme}>
       <AppContainer>
@@ -420,6 +628,7 @@ function App() {
                   selectedFile={selectedFile} 
                   onSelectFile={handleVideoSourceSelect} 
                   label="选择视频文件"
+                  subtitleFound={subtitleFound}
                 />
               </ConfigSection>
 
@@ -471,11 +680,32 @@ function App() {
                   content={revisionContent}
                   onContentChange={setRevisionContent}
                   onSaveRevision={handleSaveRevision}
+                  onSummaryUpdate={handleSummaryUpdate}
                 />
               )}
             </PanelContent>
           </SubtitlePanel>
         </MainContent>
+        
+        {/* 修订总结弹框 */}
+        {notification.visible && (
+          <NotificationOverlay onClick={closeNotification}>
+            <NotificationBox onClick={e => e.stopPropagation()}>
+              <NotificationTitle>{notification.title}</NotificationTitle>
+              <p>{notification.message}</p>
+              
+              {notification.content && (
+                <NotificationContent 
+                  dangerouslySetInnerHTML={{ __html: notification.content.replace(/\n/g, '<br>') }}
+                />
+              )}
+              
+              <NotificationButton onClick={closeNotification}>
+                确定
+              </NotificationButton>
+            </NotificationBox>
+          </NotificationOverlay>
+        )}
       </AppContainer>
     </ThemeProvider>
   );

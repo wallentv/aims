@@ -15,7 +15,7 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('subtitle-status', (_, status) => callback(status)),
   // 添加字幕文件读写功能
   readSubtitleFile: (filePath) => ipcRenderer.invoke('read-subtitle-file', filePath),
-  saveSubtitleFile: (filePath, content) => ipcRenderer.invoke('save-subtitle-file', filePath, content),
+  saveSubtitleFile: (filePath, content, summary) => ipcRenderer.invoke('save-subtitle-file', filePath, content, summary),
   // 添加打开字幕文件所在目录的功能
   openSubtitleDirectory: (filePath) => ipcRenderer.invoke('open-subtitle-directory', filePath),
   // 添加保存字幕完成事件监听器

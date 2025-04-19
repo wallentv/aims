@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 
 const Container = styled.div`
@@ -53,7 +53,48 @@ const SelectedFile = styled.div`
   font-size: 11px; /* 减小字体大小 */
 `;
 
-function FileSelector({ selectedFile, onSelectFile, label = "选择视频文件" }) {
+const StatusMessage = styled.div`
+  margin-top: 6px;
+  padding: 6px 8px;
+  background-color: rgba(62, 166, 255, 0.1);
+  border-radius: ${props => props.theme.borderRadius};
+  border-left: 2px solid ${props => props.theme.colors.secondary};
+  color: ${props => props.theme.colors.secondary};
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+`;
+
+const StatusIcon = styled.span`
+  margin-right: 6px;
+  font-size: 14px;
+`;
+
+function FileSelector({ 
+  selectedFile, 
+  onSelectFile, 
+  label = "选择视频文件", 
+  subtitleFound = false 
+}) {
+  // 添加状态来控制是否显示字幕检测提示
+  const [showSubtitleFoundMessage, setShowSubtitleFoundMessage] = useState(false);
+  
+  // 监听 subtitleFound 属性的变化
+  useEffect(() => {
+    if (subtitleFound) {
+      // 如果检测到字幕，显示提示
+      setShowSubtitleFoundMessage(true);
+      
+      // 3秒后自动隐藏提示
+      const timer = setTimeout(() => {
+        setShowSubtitleFoundMessage(false);
+      }, 3000);
+      
+      // 清理定时器
+      return () => clearTimeout(timer);
+    }
+  }, [subtitleFound]);
+
   const handleFileSelect = () => {
     if (onSelectFile) {
       onSelectFile();
@@ -82,6 +123,13 @@ function FileSelector({ selectedFile, onSelectFile, label = "选择视频文件"
         <SelectedFile>
           <strong>已选择: </strong> {getFileName(selectedFile)}
         </SelectedFile>
+      )}
+      
+      {selectedFile && showSubtitleFoundMessage && (
+        <StatusMessage>
+          <StatusIcon>✓</StatusIcon>
+          检测到字幕文件，已自动加载
+        </StatusMessage>
       )}
     </Container>
   );
