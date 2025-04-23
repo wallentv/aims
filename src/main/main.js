@@ -7,7 +7,18 @@ const os = require('os');
 // 在开发环境中启用调试工具
 const isDev = process.env.ELECTRON_START_URL ? true : false;
 const isDebug = process.env.ELECTRON_DEBUG === 'true';
-const { default: installExtension, REACT_DEVELOPER_TOOLS } = require('electron-devtools-installer');
+
+// 仅在开发环境中加载开发工具
+let installExtension, REACT_DEVELOPER_TOOLS;
+if (isDev) {
+  try {
+    const devTools = require('electron-devtools-installer');
+    installExtension = devTools.default;
+    REACT_DEVELOPER_TOOLS = devTools.REACT_DEVELOPER_TOOLS;
+  } catch (e) {
+    console.log('开发环境: electron-devtools-installer加载失败，已忽略');
+  }
+}
 
 // 处理生产环境中的错误
 if (require('electron-squirrel-startup')) {
@@ -74,15 +85,103 @@ const createWindow = async () => {
 
     mainWindow.loadURL('http://localhost:3000');
 
-    // 注释掉或删除开发者工具的自动打开功能
-    // mainWindow.webContents.openDevTools();
+    // 添加开发者工具开关用于调试
+    mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../../build/index.html'));
+    // 修改路径解析方式，适应打包环境
+    let indexPath;
+    if (app.isPackaged) {
+      // 在打包环境中使用正确的路径
+      console.log('运行环境: 已打包');
+      console.log('应用路径:', app.getAppPath());
+      console.log('资源路径:', process.resourcesPath);
+      console.log('当前目录:', __dirname);
+      
+      // 尝试使用更可靠的路径查找方式
+      indexPath = path.join(app.getAppPath(), 'build', 'index.html');
+      
+      // 如果主路径不存在，尝试备用路径
+      if (!fs.existsSync(indexPath)) {
+        console.log(`主路径不存在: ${indexPath}，尝试备用路径`);
+        
+        // 备用路径列表
+        const alternativePaths = [
+          path.join(process.resourcesPath, '..', 'app.asar', 'build', 'index.html'),
+          path.join(process.resourcesPath, 'app.asar', 'build', 'index.html'),
+          path.join(process.resourcesPath, 'app', 'build', 'index.html'),
+          path.join(__dirname, '../../build/index.html')
+        ];
+        
+        // 遍历检查备用路径
+        for (const altPath of alternativePaths) {
+          console.log(`检查备用路径: ${altPath}`);
+          if (fs.existsSync(altPath)) {
+            indexPath = altPath;
+            console.log(`找到有效路径: ${indexPath}`);
+            break;
+          }
+        }
+      }
+      
+      console.log('最终加载HTML路径:', indexPath);
+    } else {
+      // 本地开发非调试模式
+      indexPath = path.join(__dirname, '../../build/index.html');
+      console.log('本地生产模式加载HTML路径:', indexPath);
+    }
+    
+    try {
+      console.log('尝试加载HTML文件:', indexPath);
+      console.log('文件是否存在:', fs.existsSync(indexPath));
+      
+      // 设置加载失败的错误处理
+      mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+        console.error('页面加载失败:', errorCode, errorDescription);
+        // 显示错误信息
+        mainWindow.webContents.loadURL(`data:text/html,<html><body><h2>加载失败</h2><p>错误代码: ${errorCode}</p><p>描述: ${errorDescription}</p><p>路径: ${indexPath}</p></body></html>`);
+        // 打开开发者工具以便调试
+        mainWindow.webContents.openDevTools();
+      });
+      
+      mainWindow.loadFile(indexPath);
+    } catch (err) {
+      console.error('加载HTML文件时出错:', err);
+      // 尝试备用方案
+      const backupPath = path.join(__dirname, '../build/index.html');
+      console.log('尝试备用路径:', backupPath);
+      try {
+        if (fs.existsSync(backupPath)) {
+          mainWindow.loadFile(backupPath);
+        } else {
+          console.error('备用HTML路径也不存在');
+          // 显示错误信息
+          mainWindow.webContents.loadURL(`data:text/html,<html><body><h2>加载失败</h2><p>无法找到有效的HTML文件</p><p>尝试路径: ${indexPath}, ${backupPath}</p></body></html>`);
+          // 打开开发者工具以便调试
+          mainWindow.webContents.openDevTools();
+        }
+      } catch (backupErr) {
+        console.error('加载备用HTML路径时出错:', backupErr);
+      }
+    }
   }
 
-  // 优雅显示
+  // 优雅显示并确保窗口可见
   mainWindow.once('ready-to-show', () => {
+    console.log('窗口准备好显示');
     mainWindow.show();
+  });
+  
+  // 添加超时保护，确保窗口最终会显示
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      console.log('应用窗口超时未显示，强制显示');
+      mainWindow.show();
+    }
+  }, 5000);
+  
+  // 监听页面标题变化，用于调试
+  mainWindow.webContents.on('page-title-updated', (event, title) => {
+    console.log('页面标题更新:', title);
   });
 };
 
@@ -148,18 +247,61 @@ ipcMain.handle('generate-subtitle', async (event, params) => {
   // 在打包环境中使用shell脚本启动
   if (isPacked) {
     if (process.platform === 'darwin') {
-      pythonExecutable = path.join(process.resourcesPath, 'extraResources', 'backend', 'subtitle_generator');
-      scriptPath = ''; // 脚本会在shell脚本中调用
-      // 确保可执行权限
-      try {
-        const fs = require('fs');
-        fs.chmodSync(pythonExecutable, '755');
-        console.log(`已设置可执行权限: ${pythonExecutable}`);
-      } catch (err) {
-        console.error(`设置可执行权限失败: ${err}`);
+      // macOS环境下的路径处理
+      console.log('检查可能的可执行文件路径:');
+      const possibleExecutables = [
+        path.join(process.resourcesPath, 'extraResources', 'backend', 'subtitle_generator'),
+        path.join(app.getAppPath(), 'extraResources', 'backend', 'subtitle_generator'),
+        path.join(__dirname, '../../extraResources/backend/subtitle_generator')
+      ];
+      
+      let executableExists = false;
+      for (const execPath of possibleExecutables) {
+        try {
+          console.log(`检查: ${execPath}`);
+          if (fs.existsSync(execPath)) {
+            pythonExecutable = execPath;
+            executableExists = true;
+            console.log(`找到可执行文件: ${pythonExecutable}`);
+            // 确保可执行权限
+            try {
+              fs.chmodSync(pythonExecutable, '755');
+              console.log(`已设置可执行权限: ${pythonExecutable}`);
+            } catch (err) {
+              console.error(`设置可执行权限失败: ${err}`);
+            }
+            break;
+          }
+        } catch (e) {
+          console.log(`检查路径出错: ${e.message}`);
+        }
+      }
+      
+      // 如果找不到打包的可执行文件，尝试使用Python脚本直接运行
+      if (!executableExists) {
+        console.log('找不到打包的可执行文件，尝试使用Python脚本');
+        const scriptPaths = [
+          path.join(process.resourcesPath, 'extraResources', 'backend', 'generate_subtitle.py'),
+          path.join(app.getAppPath(), 'extraResources', 'backend', 'generate_subtitle.py'),
+          path.join(__dirname, '../../extraResources/backend/generate_subtitle.py')
+        ];
+        
+        for (const sPath of scriptPaths) {
+          try {
+            console.log(`检查Python脚本: ${sPath}`);
+            if (fs.existsSync(sPath)) {
+              pythonExecutable = 'python';
+              scriptPath = sPath;
+              console.log(`找到Python脚本: ${scriptPath}`);
+              break;
+            }
+          } catch (e) {
+            console.log(`检查脚本路径出错: ${e.message}`);
+          }
+        }
       }
     } else if (process.platform === 'win32') {
-      // Windows环境
+      // Windows环境保持不变
       pythonExecutable = path.join(process.resourcesPath, 'extraResources', 'backend', 'subtitle_generator.exe');
       scriptPath = '';
     }
