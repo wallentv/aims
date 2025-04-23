@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import ModelSettingsModal from './ModelSettingsModal';
+import { 
+  getFullModelSettings, 
+  saveFullModelSettings,
+  getActiveProvider 
+} from '../utils/ModelConfig';
 
 const RevisionContainer = styled.div`
   display: flex;
@@ -344,11 +348,9 @@ const createHistoryItem = (summary, content, timestamp) => ({
   id: Date.now() // 唯一ID
 });
 
-function SubtitleRevision({ subtitlePath, initialContent, content, onContentChange, onSaveRevision, onSummaryUpdate }) {
+function SubtitleRevision({ subtitlePath, initialContent, content, onContentChange, onSaveRevision, onSummaryUpdate, modelSettings }) {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState('');
-  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-  const [modelSettings, setModelSettings] = useState(null);
   const [hasSettings, setHasSettings] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState(null);
   const [showSaveNotification, setShowSaveNotification] = useState(false);
@@ -376,19 +378,18 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
     }
   }, [subtitlePath, initialContent, content, onContentChange]);
 
-  // 加载本地存储的模型设置和历史记录
+  // 检查是否有有效的模型设置
+  useEffect(() => {
+    if (modelSettings) {
+      setHasSettings(Boolean(modelSettings.apiKey && modelSettings.apiUrl));
+    } else {
+      setHasSettings(false);
+    }
+  }, [modelSettings]);
+  
+  // 加载历史记录
   useEffect(() => {
     try {
-      // 加载模型设置
-      const activeProvider = localStorage.getItem('activeProvider') || 'defaultProvider';
-      const allSettings = JSON.parse(localStorage.getItem('allModelSettings') || '{}');
-      
-      const settings = allSettings[activeProvider] || null;
-      if (settings) {
-        setModelSettings(settings);
-        setHasSettings(Boolean(settings.apiKey && settings.apiUrl));
-      }
-      
       // 加载历史记录
       if (subtitlePath) {
         const historyKey = `revisionHistory_${subtitlePath}`;
@@ -399,7 +400,7 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
         }
       }
     } catch (error) {
-      console.error('加载设置或历史记录出错:', error);
+      console.error('加载历史记录出错:', error);
     }
   }, [subtitlePath]);
 
@@ -492,31 +493,9 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
     };
   }, [subtitlePath, content, summary]); // 只依赖这三个变量，不依赖revisionHistory
 
-  // 保存模型设置
-  const handleSaveSettings = (settings) => {
-    try {
-      // 获取现有的所有设置
-      const allSettings = JSON.parse(localStorage.getItem('allModelSettings') || '{}');
-      
-      // 为当前提供商更新设置
-      allSettings[settings.provider] = settings;
-      
-      // 保存所有设置
-      localStorage.setItem('allModelSettings', JSON.stringify(allSettings));
-      
-      // 同时更新当前活动设置
-      localStorage.setItem('activeProvider', settings.provider);
-      
-      setModelSettings(settings);
-      setHasSettings(Boolean(settings.apiKey && settings.apiUrl));
-    } catch (error) {
-      console.error('保存模型设置出错:', error);
-    }
-  };
-
   // 使用AI修订字幕
   const handleReviseSubtitle = async () => {
-    if (!hasSettings || !content) {
+    if (!hasSettings || !content || !modelSettings) {
       return;
     }
 
@@ -536,8 +515,8 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
     }, 1000);
     
     try {
-      // 替换提示词模板中的字幕占位符
-      const prompt = modelSettings.promptTemplate.replace('{{subtitle}}', content);
+      // 使用字幕修订专用的提示词模板
+      const prompt = modelSettings.revisionPromptTemplate.replace('{{subtitle}}', content);
       
       // 准备API请求
       const response = await fetch(modelSettings.apiUrl + '/chat/completions', {
@@ -1017,18 +996,6 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
             </ActionButton>
           )}
         </RevisionToolbar>
-        
-        <RevisionToolbar>
-          <ActionButton 
-            onClick={() => setSettingsModalOpen(true)}
-            title="设置AI模型参数"
-          >
-            <ButtonIcon>
-              <span role="img" aria-label="settings">⚙️</span>
-            </ButtonIcon>
-            设置
-          </ActionButton>
-        </RevisionToolbar>
       </RevisionHeader>
       
       {!subtitlePath ? (
@@ -1167,14 +1134,6 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
           )}
         </RevisionContent>
       )}
-      
-      {/* 模型设置弹窗 */}
-      <ModelSettingsModal
-        isOpen={settingsModalOpen}
-        onClose={() => setSettingsModalOpen(false)}
-        settings={modelSettings}
-        onSave={handleSaveSettings}
-      />
     </RevisionContainer>
   );
 }

@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { 
+  PROVIDERS, 
+  PROVIDER_MODELS, 
+  DEFAULT_API_URLS,
+  DEFAULT_REVISION_PROMPT,
+  DEFAULT_SUMMARY_PROMPT,
+  getDefaultProviderSettings,
+  getFullModelSettings,
+  saveFullModelSettings
+} from '../utils/ModelConfig';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -139,84 +149,40 @@ const Button = styled.button`
   }
 `;
 
-// Define the default prompt template as a plain string to avoid template literal evaluation issues
-const DEFAULT_PROMPT = "请帮我修正以下SRT格式字幕中可能存在的错别字、不通顺的表达和标点符号错误，输出修正后的完整字幕。\n" +
-"请特别注意：\n" +
-"1. 不要改变字幕的时间标记\n" +
-"2. 不要改变字幕的编号\n" +
-"3. 保持原文的整体含义\n" +
-"4. 修正错别字和语法错误\n" +
-"5. 优化不通顺的表达\n" +
-"6. 修正标点符号错误\n\n" +
-"同时，请在字幕修正完成后，添加一个总结，列出你修改了哪些内容，以及做了哪些改进。\n\n" +
-"输出的字幕里不要有其他元素，特别是字幕的头和尾，不要有解释说明文字和符号：\n" +
-"以下是需要修正的字幕：\n" +
-
-"{{subtitle}}";
-
-// Provider configuration
-const PROVIDERS = {
-  OPENAI: 'openai',
-  DEEPSEEK: 'deepseek'
-};
-
-// Provider-specific model lists
-const PROVIDER_MODELS = {
-  [PROVIDERS.OPENAI]: [
-    { id: 'gpt-4', name: 'GPT-4' },
-    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
-    { id: 'gpt-3.5-turbo-16k', name: 'GPT-3.5 Turbo (16k)' },
-    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' }
-  ],
-  [PROVIDERS.DEEPSEEK]: [
-    { id: 'deepseek-chat', name: 'DeepSeek Chat' },
-    { id: 'deepseek-reasoner', name: 'DeepSeek Coder' }
-  ]
-};
-
-// Default API URLs
-const DEFAULT_API_URLS = {
-  [PROVIDERS.OPENAI]: 'https://api.openai.com/v1',
-  [PROVIDERS.DEEPSEEK]: 'https://api.deepseek.com/v1'
-};
-
-// Default provider settings
-const getDefaultProviderSettings = () => ({
-  [PROVIDERS.OPENAI]: {
-    apiUrl: DEFAULT_API_URLS[PROVIDERS.OPENAI],
-    apiKey: '',
-    modelId: 'gpt-3.5-turbo',
-  },
-  [PROVIDERS.DEEPSEEK]: {
-    apiUrl: DEFAULT_API_URLS[PROVIDERS.DEEPSEEK],
-    apiKey: '',
-    modelId: 'deepseek-chat',
-  }
-});
-
 function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
-  // Initialize provider settings with defaults
+  // 初始化提供商设置
   const [providerSettings, setProviderSettings] = useState(getDefaultProviderSettings());
   
-  // Current selected provider
+  // 当前选择的提供商
   const [currentProvider, setCurrentProvider] = useState(PROVIDERS.OPENAI);
   
-  // Shared prompt template (not provider-specific)
-  const [promptTemplate, setPromptTemplate] = useState(DEFAULT_PROMPT);
+  // 字幕修订提示词模板
+  const [revisionPromptTemplate, setRevisionPromptTemplate] = useState(DEFAULT_REVISION_PROMPT);
   
-  // Load settings if provided
+  // 字幕总结提示词模板 (新增)
+  const [summaryPromptTemplate, setSummaryPromptTemplate] = useState(DEFAULT_SUMMARY_PROMPT);
+  
+  // 当前活动的提示词类型 (新增)
+  const [activePromptType, setActivePromptType] = useState('revision');
+  
+  // 加载设置
   useEffect(() => {
     if (settings) {
       const savedProvider = settings.provider || PROVIDERS.OPENAI;
       setCurrentProvider(savedProvider);
-      setPromptTemplate(settings.promptTemplate || DEFAULT_PROMPT);
       
-      // Initialize provider settings with defaults then update with saved settings
+      // 加载字幕修订提示词模板
+      setRevisionPromptTemplate(settings.revisionPromptTemplate || DEFAULT_REVISION_PROMPT);
+      
+      // 加载字幕总结提示词模板
+      setSummaryPromptTemplate(settings.summaryPromptTemplate || DEFAULT_SUMMARY_PROMPT);
+      
+      // 初始化提供商设置
       const newProviderSettings = getDefaultProviderSettings();
       
-      // If we have provider-specific settings saved
+      // 如果有提供商特定设置
       if (settings.providerSettings) {
-        // Merge saved provider settings with defaults
+        // 合并保存的提供商设置与默认值
         Object.keys(settings.providerSettings).forEach(provider => {
           newProviderSettings[provider] = {
             ...newProviderSettings[provider],
@@ -224,7 +190,7 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
           };
         });
       } 
-      // For backward compatibility with older settings format
+      // 向后兼容旧的设置格式
       else {
         newProviderSettings[savedProvider] = {
           apiUrl: settings.apiUrl || DEFAULT_API_URLS[savedProvider],
@@ -237,7 +203,7 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
     }
   }, [settings]);
   
-  // Get current provider's settings
+  // 获取当前提供商的设置
   const getCurrentSettings = () => {
     return providerSettings[currentProvider] || {
       apiUrl: DEFAULT_API_URLS[currentProvider],
@@ -246,12 +212,12 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
     };
   };
   
-  // Handle provider change
+  // 处理提供商变更
   const handleProviderChange = (e) => {
     setCurrentProvider(e.target.value);
   };
   
-  // Handle settings change for current provider
+  // 处理当前提供商设置变更
   const handleSettingChange = (e) => {
     const { name, value } = e.target;
     
@@ -264,21 +230,33 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
     }));
   };
   
-  // Handle prompt template change
+  // 处理提示词模板变更
   const handlePromptChange = (e) => {
-    setPromptTemplate(e.target.value);
+    const { value } = e.target;
+    
+    if (activePromptType === 'revision') {
+      setRevisionPromptTemplate(value);
+    } else {
+      setSummaryPromptTemplate(value);
+    }
   };
   
-  // Handle form submission
+  // 切换提示词类型
+  const handlePromptTypeChange = (type) => {
+    setActivePromptType(type);
+  };
+  
+  // 处理表单提交
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Prepare the settings to save
+    // 准备要保存的设置
     const formData = {
       provider: currentProvider,
-      promptTemplate: promptTemplate,
+      revisionPromptTemplate: revisionPromptTemplate,
+      summaryPromptTemplate: summaryPromptTemplate,
       providerSettings: providerSettings,
-      // Include current provider's settings at the top level for backward compatibility
+      // 在顶层包含当前提供商的设置（向后兼容）
       ...providerSettings[currentProvider]
     };
     
@@ -286,17 +264,31 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
     onClose();
   };
   
-  // Don't render anything if modal is not open
+  // 重置当前提示词模板为默认值
+  const handleResetPrompt = () => {
+    if (activePromptType === 'revision') {
+      setRevisionPromptTemplate(DEFAULT_REVISION_PROMPT);
+    } else {
+      setSummaryPromptTemplate(DEFAULT_SUMMARY_PROMPT);
+    }
+  };
+  
+  // 如果模态框未打开则不渲染任何内容
   if (!isOpen) return null;
   
-  // Get current provider settings
+  // 获取当前提供商设置
   const currentSettings = getCurrentSettings();
+  
+  // 获取当前活动的提示词模板
+  const currentPromptTemplate = activePromptType === 'revision' 
+    ? revisionPromptTemplate 
+    : summaryPromptTemplate;
   
   return (
     <ModalOverlay onClick={onClose}>
       <ModalContent onClick={e => e.stopPropagation()}>
         <ModalHeader>
-          <ModalTitle>AI 字幕修订设置</ModalTitle>
+          <ModalTitle>AI 模型设置</ModalTitle>
           <CloseButton onClick={onClose}>×</CloseButton>
         </ModalHeader>
         
@@ -352,18 +344,46 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
             </Select>
           </FormGroup>
           
+          {/* 提示词类型选择器 */}
           <FormGroup>
-            <Label>提示词模板</Label>
+            <Label>提示词类型</Label>
+            <PromptTypeSelector>
+              <PromptTypeButton 
+                active={activePromptType === 'revision'} 
+                onClick={() => handlePromptTypeChange('revision')}
+                type="button"
+              >
+                字幕修订
+              </PromptTypeButton>
+              <PromptTypeButton 
+                active={activePromptType === 'summary'} 
+                onClick={() => handlePromptTypeChange('summary')}
+                type="button"
+              >
+                字幕总结
+              </PromptTypeButton>
+            </PromptTypeSelector>
+          </FormGroup>
+          
+          <FormGroup>
+            <Label>
+              {activePromptType === 'revision' ? '字幕修订提示词模板' : '字幕总结提示词模板'}
+            </Label>
             <TextArea 
               name="promptTemplate" 
-              value={promptTemplate} 
+              value={currentPromptTemplate} 
               onChange={handlePromptChange}
-              placeholder="输入提示词模板，使用 {{subtitle}} 作为字幕内容的占位符"
+              placeholder={`输入${activePromptType === 'revision' ? '字幕修订' : '字幕总结'}提示词模板，使用 {{subtitle}} 作为字幕内容的占位符`}
               required
             />
-            <div style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
-              使用 {'{{subtitle}}'} 作为字幕内容的占位符
-            </div>
+            <PromptActions>
+              <div style={{ fontSize: '12px', color: '#aaa' }}>
+                使用 {'{{subtitle}}'} 作为字幕内容的占位符
+              </div>
+              <ResetButton type="button" onClick={handleResetPrompt}>
+                重置为默认
+              </ResetButton>
+            </PromptActions>
           </FormGroup>
           
           <ButtonContainer>
@@ -375,5 +395,47 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
     </ModalOverlay>
   );
 }
+
+// 提示词类型选择器样式
+const PromptTypeSelector = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+`;
+
+const PromptTypeButton = styled.button`
+  flex: 1;
+  padding: 6px 12px;
+  background-color: ${props => props.active ? props.theme.colors.secondary : props.theme.colors.surfaceLight};
+  color: ${props => props.active ? 'white' : props.theme.colors.text};
+  border: 1px solid ${props => props.active ? props.theme.colors.secondary : 'rgba(255, 255, 255, 0.1)'};
+  border-radius: ${props => props.theme.borderRadius};
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background-color: ${props => props.active ? props.theme.colors.secondary : 'rgba(33, 134, 208, 0.1)'};
+  }
+`;
+
+const PromptActions = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+`;
+
+const ResetButton = styled.button`
+  background: none;
+  border: none;
+  color: ${props => props.theme.colors.secondary};
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+`;
 
 export default ModelSettingsModal;

@@ -56,7 +56,41 @@ const GroupTitle = styled.h3`
   opacity: 0.8;
 `;
 
-function SubtitleSettings({ settings, onChange }) {
+const ModelSettingsButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background-color: transparent;
+  color: ${props => props.theme.colors.secondary};
+  border: 1px solid ${props => props.theme.colors.secondary};
+  border-radius: ${props => props.theme.borderRadius};
+  padding: 6px 12px;
+  margin-top: 12px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: rgba(33, 134, 208, 0.1);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #606060;
+    color: #606060;
+  }
+`;
+
+const ButtonIcon = styled.span`
+  margin-right: 6px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+`;
+
+function SubtitleSettings({ settings, onChange, onOpenModelSettings }) {
   const languages = [
     { value: 'zh', label: '中文' },
     { value: 'en', label: '英文' }
@@ -132,6 +166,14 @@ function SubtitleSettings({ settings, onChange }) {
             ))}
           </OptionsTable>
         </Group>
+        
+        {/* 添加AI模型设置按钮 */}
+        <ModelSettingsButton onClick={onOpenModelSettings}>
+          <ButtonIcon>
+            <span role="img" aria-label="settings">⚙️</span>
+          </ButtonIcon>
+          AI模型设置
+        </ModelSettingsButton>
       </SettingsGrid>
     </Container>
   );

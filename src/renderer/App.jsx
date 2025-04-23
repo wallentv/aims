@@ -6,7 +6,10 @@ import SubtitleSettings from './components/SubtitleSettings.jsx';
 import ProgressBar from './components/ProgressBar.jsx';
 import SubtitleEditor from './components/SubtitleEditor.jsx';
 import SubtitleRevision from './components/SubtitleRevision.jsx';
+import SubtitleSummary from './components/SubtitleSummary.jsx';
+import ModelSettingsModal from './components/ModelSettingsModal.jsx';
 import SubtitleStateManager from './utils/SubtitleStateManager.js';
+import { getFullModelSettings, saveFullModelSettings } from './utils/ModelConfig.js';
 
 // 主题配置 - 油管风格
 const theme = {
@@ -236,6 +239,9 @@ function App() {
   const [revisionContent, setRevisionContent] = useState(''); // 用于修订标签页
   const [revisionPath, setRevisionPath] = useState(null);
   
+  // 添加字幕总结状态
+  const [summaryLoaded, setSummaryLoaded] = useState(false);
+  
   // 添加字幕是否自动发现的状态
   const [subtitleFound, setSubtitleFound] = useState(false);
   
@@ -248,6 +254,10 @@ function App() {
   
   // 保存当前修订总结
   const [currentSummary, setCurrentSummary] = useState('');
+
+  // 添加模型设置相关状态
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [modelSettings, setModelSettings] = useState(null);
 
   // 添加提示框状态
   const [notification, setNotification] = useState({
@@ -291,6 +301,34 @@ function App() {
       }
     )
   );
+
+  // 加载模型设置
+  useEffect(() => {
+    try {
+      const settings = getFullModelSettings();
+      if (settings) {
+        setModelSettings(settings);
+      }
+    } catch (error) {
+      console.error('加载模型设置出错:', error);
+    }
+  }, []);
+
+  // 保存模型设置
+  const handleSaveModelSettings = (settings) => {
+    try {
+      saveFullModelSettings(settings);
+      setModelSettings(settings);
+      setSettingsModalOpen(false);
+    } catch (error) {
+      console.error('保存模型设置出错:', error);
+    }
+  };
+
+  // 处理打开模型设置对话框
+  const handleOpenModelSettings = () => {
+    setSettingsModalOpen(true);
+  };
 
   // 根据视频文件路径获取可能的字幕文件路径
   const getPossibleSubtitlePaths = (videoPath) => {
@@ -633,7 +671,11 @@ function App() {
               </ConfigSection>
 
               <ConfigSection>
-                <SubtitleSettings settings={subtitleSettings} onChange={setSubtitleSettings} />
+                <SubtitleSettings 
+                  settings={subtitleSettings} 
+                  onChange={setSubtitleSettings} 
+                  onOpenModelSettings={handleOpenModelSettings}
+                />
               </ConfigSection>
               
               <GenerateButton onClick={handleGenerate} disabled={processing || !selectedFile}>
@@ -658,6 +700,12 @@ function App() {
               >
                 字幕修订
               </Tab>
+              <Tab 
+                active={activeTab === 'summary'} 
+                onClick={() => handleTabChange('summary')}
+              >
+                字幕总结
+              </Tab>
             </TabContainer>
             
             <PanelContent>
@@ -673,7 +721,7 @@ function App() {
                   content={editorContent}
                   onContentChange={setEditorContent}
                 />
-              ) : (
+              ) : activeTab === 'revision' ? (
                 <SubtitleRevision 
                   subtitlePath={revisionPath || subtitleState.completedPath}
                   initialContent={initialContentRef.current}
@@ -681,6 +729,13 @@ function App() {
                   onContentChange={setRevisionContent}
                   onSaveRevision={handleSaveRevision}
                   onSummaryUpdate={handleSummaryUpdate}
+                  modelSettings={modelSettings}
+                />
+              ) : (
+                <SubtitleSummary 
+                  subtitlePath={revisionPath || subtitleState.completedPath}
+                  content={revisionContent || editorContent}
+                  modelSettings={modelSettings}
                 />
               )}
             </PanelContent>
@@ -706,6 +761,14 @@ function App() {
             </NotificationBox>
           </NotificationOverlay>
         )}
+
+        {/* 模型设置弹窗 */}
+        <ModelSettingsModal
+          isOpen={settingsModalOpen}
+          onClose={() => setSettingsModalOpen(false)}
+          settings={modelSettings}
+          onSave={handleSaveModelSettings}
+        />
       </AppContainer>
     </ThemeProvider>
   );
