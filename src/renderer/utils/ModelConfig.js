@@ -51,7 +51,7 @@ export const PROVIDER_MODELS = {
   ],
   [PROVIDERS.DEEPSEEK]: [
     { id: 'deepseek-chat', name: 'DeepSeek Chat' },
-    { id: 'deepseek-reasoner', name: 'DeepSeek Coder' }
+    { id: 'deepseek-reasoner', name: 'DeepSeek R1' }
   ]
 };
 

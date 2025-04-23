@@ -49,9 +49,12 @@ const RevisionTextArea = styled.textarea`
   font-family: monospace;
   resize: none;
   outline: none;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   margin-bottom: ${props => props.theme.spacing.medium};
+  height: auto;
+  min-height: 100px;
+  overflow-y: auto;
   
   &:focus {
     box-shadow: inset 0 0 0 1px ${props => props.theme.colors.secondary};
@@ -426,13 +429,6 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
       
       // 如果有修订摘要或内容变化，则保存到历史记录
       if (content && subtitlePath) {
-        const newHistoryItem = createHistoryItem(
-          // 优先使用从保存事件接收到的摘要，其次是当前摘要状态
-          data.summary || summary || '手动修订',
-          content, 
-          data.saveTime
-        );
-        
         // 获取最新的历史记录（不依赖于旧的状态）
         try {
           const historyKey = `revisionHistory_${subtitlePath}`;
@@ -443,25 +439,35 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
             currentHistory = JSON.parse(savedHistory);
           }
           
+          // 创建新的历史记录项
+          const newHistoryItem = createHistoryItem(
+            // 优先使用从保存事件接收到的摘要，其次是当前摘要状态
+            data.summary || summary || '手动修订',
+            content, 
+            data.saveTime
+          );
+          
           // 改进的重复检测逻辑
-          const isDuplicate = currentHistory.some(item => {
-            // 比较内容（规范化空白字符）
-            const normalizedNewContent = content.replace(/\s+/g, ' ').trim();
-            const normalizedOldContent = item.content.replace(/\s+/g, ' ').trim();
+          let isDuplicate = false;
+          
+          // 检查最近一次的记录是否与当前保存内容完全相同
+          if (currentHistory.length > 0) {
+            const lastItem = currentHistory[0];
             
-            if (normalizedNewContent !== normalizedOldContent) {
-              return false;
-            }
+            // 比较内容（规范化空白字符和行尾）
+            const normalizedNewContent = content.replace(/\s+/g, ' ').trim();
+            const normalizedOldContent = lastItem.content.replace(/\s+/g, ' ').trim();
             
             // 从摘要中提取基础内容（移除耗时信息）
             const newSummaryBase = (data.summary || summary || '手动修订').replace(/\n耗时:.+$/s, '').trim();
-            const oldSummaryBase = item.summary.replace(/\n耗时:.+$/s, '').trim();
+            const oldSummaryBase = lastItem.summary.replace(/\n耗时:.+$/s, '').trim();
             
-            // 如果基础摘要相同则视为重复
-            return newSummaryBase === oldSummaryBase;
-          });
-          
-          console.log('重复检测结果:', isDuplicate, '当前历史记录数:', currentHistory.length);
+            // 如果内容和基础摘要都相同则视为重复
+            if (normalizedNewContent === normalizedOldContent && newSummaryBase === oldSummaryBase) {
+              isDuplicate = true;
+              console.log('检测到重复的修订记录，已跳过');
+            }
+          }
           
           if (!isDuplicate) {
             // 添加新记录到历史
@@ -473,8 +479,6 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
             // 更新状态
             setRevisionHistory(updatedHistory);
             console.log('已添加新的修订记录');
-          } else {
-            console.log('检测到重复的修订记录，已跳过');
           }
         } catch (e) {
           console.error('保存或获取历史记录失败:', e);

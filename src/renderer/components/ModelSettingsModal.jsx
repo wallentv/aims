@@ -11,28 +11,36 @@ import {
   saveFullModelSettings
 } from '../utils/ModelConfig';
 
+// 修改为左侧滑出面板的样式
 const ModalOverlay = styled.div`
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center;
-  align-items: center;
   z-index: 1000;
+  transition: all 0.3s ease-in-out;
 `;
 
+// 面板从左侧滑出
 const ModalContent = styled.div`
   background-color: ${props => props.theme.colors.surface};
-  border-radius: ${props => props.theme.borderRadius};
-  width: 90%;
-  max-width: 500px;
-  max-height: 90vh;
+  height: 100vh;
+  width: 550px; // 从450px增加到550px
+  max-width: 90%;
   overflow-y: auto;
   padding: ${props => props.theme.spacing.medium};
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 2px 0 15px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column; // 改为纵向布局，便于固定底部按钮
+  
+  @keyframes slideIn {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
 `;
 
 const ModalHeader = styled.div`
@@ -65,13 +73,25 @@ const CloseButton = styled.button`
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: ${props => props.theme.spacing.medium};
+  gap: ${props => props.theme.spacing.small}; // 减小表单元素之间的间距
+  flex: 1; // 让表单占据所有可用空间
+  overflow-y: auto; // 表单内容过多时可滚动
 `;
 
 const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${props => props.theme.spacing.small};
+  gap: 4px; // 减小标签和输入框之间的间距
+`;
+
+const FormRow = styled.div`
+  display: flex;
+  gap: 12px; // 行内元素之间的间距
+  margin-bottom: 4px; // 行间距
+  
+  & > div {
+    flex: 1; // 让元素平均分配空间
+  }
 `;
 
 const Label = styled.label`
@@ -84,7 +104,7 @@ const Input = styled.input`
   color: ${props => props.theme.colors.text};
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: ${props => props.theme.borderRadius};
-  padding: ${props => props.theme.spacing.small};
+  padding: 6px 8px; // 减小内边距
   font-size: 14px;
   
   &:focus {
@@ -98,7 +118,7 @@ const Select = styled.select`
   color: ${props => props.theme.colors.text};
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: ${props => props.theme.borderRadius};
-  padding: ${props => props.theme.spacing.small};
+  padding: 6px 8px; // 减小内边距
   font-size: 14px;
   
   &:focus {
@@ -113,21 +133,19 @@ const TextArea = styled.textarea`
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: ${props => props.theme.borderRadius};
   padding: ${props => props.theme.spacing.small};
-  font-size: 14px;
-  min-height: 120px;
+  font-size: 16px;
+  min-height: 240px;
   resize: vertical;
+  flex: 1;
+  
+  line-height: 1.5;
+  height: auto;
+  overflow-y: auto;
   
   &:focus {
     outline: none;
     border-color: ${props => props.theme.colors.secondary};
   }
-`;
-
-const ButtonContainer = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: ${props => props.theme.spacing.small};
-  margin-top: ${props => props.theme.spacing.medium};
 `;
 
 const Button = styled.button`
@@ -293,104 +311,118 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
         </ModalHeader>
         
         <Form onSubmit={handleSubmit}>
-          <FormGroup>
-            <Label>服务提供商</Label>
-            <Select 
-              name="provider" 
-              value={currentProvider} 
-              onChange={handleProviderChange}
-              required
-            >
-              <option value={PROVIDERS.OPENAI}>OpenAI</option>
-              <option value={PROVIDERS.DEEPSEEK}>DeepSeek</option>
-            </Select>
-          </FormGroup>
+          {/* 紧凑布局的表单字段 */}
+          <FormSection>
+            <FormRow>
+              <FormGroup>
+                <Label>服务提供商</Label>
+                <Select 
+                  name="provider" 
+                  value={currentProvider} 
+                  onChange={handleProviderChange}
+                  required
+                >
+                  <option value={PROVIDERS.OPENAI}>OpenAI</option>
+                  <option value={PROVIDERS.DEEPSEEK}>DeepSeek</option>
+                </Select>
+              </FormGroup>
+              
+              <FormGroup>
+                <Label>AI 模型</Label>
+                <Select 
+                  name="modelId" 
+                  value={currentSettings.modelId} 
+                  onChange={handleSettingChange}
+                  required
+                >
+                  {PROVIDER_MODELS[currentProvider].map(model => (
+                    <option key={model.id} value={model.id}>{model.name}</option>
+                  ))}
+                </Select>
+              </FormGroup>
+            </FormRow>
+            
+            <FormRow>
+              <FormGroup>
+                <Label>API URL</Label>
+                <Input 
+                  type="text" 
+                  name="apiUrl" 
+                  value={currentSettings.apiUrl} 
+                  onChange={handleSettingChange} 
+                  placeholder={`例如: ${DEFAULT_API_URLS[currentProvider]}`}
+                  required
+                />
+              </FormGroup>
+              
+              <FormGroup>
+                <Label>API 密钥</Label>
+                <Input 
+                  type="password" 
+                  name="apiKey" 
+                  value={currentSettings.apiKey} 
+                  onChange={handleSettingChange} 
+                  placeholder="输入您的API密钥"
+                  required
+                />
+              </FormGroup>
+            </FormRow>
+          </FormSection>
           
-          <FormGroup>
-            <Label>API URL</Label>
-            <Input 
-              type="text" 
-              name="apiUrl" 
-              value={currentSettings.apiUrl} 
-              onChange={handleSettingChange} 
-              placeholder={`例如: ${DEFAULT_API_URLS[currentProvider]}`}
-              required
-            />
-          </FormGroup>
-          
-          <FormGroup>
-            <Label>API 密钥</Label>
-            <Input 
-              type="password" 
-              name="apiKey" 
-              value={currentSettings.apiKey} 
-              onChange={handleSettingChange} 
-              placeholder="输入您的API密钥"
-              required
-            />
-          </FormGroup>
-          
-          <FormGroup>
-            <Label>AI 模型</Label>
-            <Select 
-              name="modelId" 
-              value={currentSettings.modelId} 
-              onChange={handleSettingChange}
-              required
-            >
-              {PROVIDER_MODELS[currentProvider].map(model => (
-                <option key={model.id} value={model.id}>{model.name}</option>
-              ))}
-            </Select>
-          </FormGroup>
-          
-          {/* 提示词类型选择器 */}
-          <FormGroup>
-            <Label>提示词类型</Label>
-            <PromptTypeSelector>
-              <PromptTypeButton 
-                active={activePromptType === 'revision'} 
-                onClick={() => handlePromptTypeChange('revision')}
-                type="button"
-              >
-                字幕修订
-              </PromptTypeButton>
-              <PromptTypeButton 
-                active={activePromptType === 'summary'} 
-                onClick={() => handlePromptTypeChange('summary')}
-                type="button"
-              >
-                字幕总结
-              </PromptTypeButton>
-            </PromptTypeSelector>
-          </FormGroup>
-          
-          <FormGroup>
-            <Label>
-              {activePromptType === 'revision' ? '字幕修订提示词模板' : '字幕总结提示词模板'}
-            </Label>
-            <TextArea 
-              name="promptTemplate" 
-              value={currentPromptTemplate} 
-              onChange={handlePromptChange}
-              placeholder={`输入${activePromptType === 'revision' ? '字幕修订' : '字幕总结'}提示词模板，使用 {{subtitle}} 作为字幕内容的占位符`}
-              required
-            />
-            <PromptActions>
-              <div style={{ fontSize: '12px', color: '#aaa' }}>
-                使用 {'{{subtitle}}'} 作为字幕内容的占位符
-              </div>
-              <ResetButton type="button" onClick={handleResetPrompt}>
-                重置为默认
-              </ResetButton>
-            </PromptActions>
-          </FormGroup>
-          
-          <ButtonContainer>
-            <Button type="button" onClick={onClose}>取消</Button>
-            <Button type="submit" primary>保存设置</Button>
-          </ButtonContainer>
+          {/* 提示词部分 - 占据绝大部分空间 */}
+          <PromptSectionContainer>
+            {/* 提示词类型选择器 */}
+            <FormGroup>
+              <Label>提示词类型</Label>
+              <PromptTypeSelector>
+                <PromptTypeButton 
+                  active={activePromptType === 'revision'} 
+                  onClick={() => handlePromptTypeChange('revision')}
+                  type="button"
+                >
+                  字幕修订
+                </PromptTypeButton>
+                <PromptTypeButton 
+                  active={activePromptType === 'summary'} 
+                  onClick={() => handlePromptTypeChange('summary')}
+                  type="button"
+                >
+                  字幕总结
+                </PromptTypeButton>
+              </PromptTypeSelector>
+            </FormGroup>
+            
+            {/* 提示词模板编辑器 - 占据所有剩余空间 */}
+            <FormGroup style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <Label>
+                {activePromptType === 'revision' ? '字幕修订提示词模板' : '字幕总结提示词模板'}
+              </Label>
+              <TextAreaContainer>
+                <TextArea 
+                  name="promptTemplate" 
+                  value={currentPromptTemplate} 
+                  onChange={handlePromptChange}
+                  placeholder={`输入${activePromptType === 'revision' ? '字幕修订' : '字幕总结'}提示词模板，使用 {{subtitle}} 作为字幕内容的占位符`}
+                  required
+                />
+              </TextAreaContainer>
+              <PromptActions>
+                <div style={{ fontSize: '12px', color: '#aaa' }}>
+                  使用 {'{{subtitle}}'} 作为字幕内容的占位符
+                </div>
+                <ResetButton type="button" onClick={handleResetPrompt}>
+                  重置为默认
+                </ResetButton>
+              </PromptActions>
+            </FormGroup>
+          </PromptSectionContainer>
         </Form>
+        
+        {/* 底部按钮 - 完全固定在底部 */}
+        <ButtonContainer>
+          <Button type="button" onClick={onClose}>取消</Button>
+          <Button type="submit" primary onClick={handleSubmit}>保存设置</Button>
+        </ButtonContainer>
       </ModalContent>
     </ModalOverlay>
   );
@@ -399,13 +431,15 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
 // 提示词类型选择器样式
 const PromptTypeSelector = styled.div`
   display: flex;
+  flex-direction: row; // 改为水平排列
   gap: 8px;
+  width: 100%; // 占满整个容器宽度
   margin-top: 4px;
 `;
 
 const PromptTypeButton = styled.button`
   flex: 1;
-  padding: 6px 12px;
+  padding: 8px 12px; // 增加一点内边距高度
   background-color: ${props => props.active ? props.theme.colors.secondary : props.theme.colors.surfaceLight};
   color: ${props => props.active ? 'white' : props.theme.colors.text};
   border: 1px solid ${props => props.active ? props.theme.colors.secondary : 'rgba(255, 255, 255, 0.1)'};
@@ -416,6 +450,14 @@ const PromptTypeButton = styled.button`
   &:hover {
     background-color: ${props => props.active ? props.theme.colors.secondary : 'rgba(33, 134, 208, 0.1)'};
   }
+`;
+
+const PromptSectionContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${props => props.theme.spacing.medium};
+  margin-top: ${props => props.theme.spacing.medium};
+  flex: 1;
 `;
 
 const PromptActions = styled.div`
@@ -436,6 +478,30 @@ const ResetButton = styled.button`
   &:hover {
     text-decoration: underline;
   }
+`;
+
+const FormSection = styled.div`
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 12px;
+`;
+
+const TextAreaContainer = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px; // 提供更大的最小高度
+`;
+
+// 按钮容器改为固定在模态框底部
+const ButtonContainer = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: ${props => props.theme.spacing.small};
+  padding-top: 12px;
+  margin-top: auto; // 推到底部
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: ${props => props.theme.colors.surface};
 `;
 
 export default ModelSettingsModal;

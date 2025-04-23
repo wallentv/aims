@@ -5,7 +5,7 @@ const SummaryContainer = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  position: relative;
 `;
 
 const SummaryHeader = styled.div`
@@ -13,6 +13,11 @@ const SummaryHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: ${props => props.theme.spacing.medium};
+  position: sticky;
+  top: 0;
+  background-color: ${props => props.theme.colors.background || '#1e1e1e'};
+  z-index: 10;
+  padding: 10px 0;
 `;
 
 const SummaryTitle = styled.h3`
@@ -26,13 +31,40 @@ const SummaryToolbar = styled.div`
   gap: 8px;
 `;
 
+const StatusMessage = styled.div`
+  display: flex;
+  align-items: center;
+  color: ${props => props.success ? '#2ecc71' : props.error ? '#e74c3c' : props.theme.colors.textSecondary};
+  font-size: 13px;
+  margin-left: 12px;
+  background-color: ${props => props.success ? 'rgba(46, 204, 113, 0.1)' : props.error ? 'rgba(231, 76, 60, 0.1)' : 'transparent'};
+  padding: 4px 8px;
+  border-radius: ${props => props.theme.borderRadius};
+  transition: opacity 0.3s;
+  opacity: ${props => props.visible ? 1 : 0};
+`;
+
 const SummaryContent = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  position: relative;
   gap: ${props => props.theme.spacing.medium};
+  overflow-y: auto;
+  padding-right: 6px; /* 给滚动条预留空间 */
+  
+  /* 自定义滚动条样式 */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(155, 155, 155, 0.5);
+    border-radius: 3px;
+  }
 `;
 
 const SectionContainer = styled.div`
@@ -87,27 +119,16 @@ const SummaryTextArea = styled.textarea`
   font-family: ${props => props.theme.fonts.main};
   resize: none;
   outline: none;
-  font-size: 13px;
+  font-size: ${props => props.isTitle ? '20px' : '16px'};
+  font-weight: ${props => props.isTitle ? 'bold' : 'normal'};
   line-height: 1.5;
   min-height: ${props => props.minHeight || '80px'};
+  height: auto;
+  overflow-y: visible;
   
   &:focus {
     box-shadow: inset 0 0 0 1px ${props => props.theme.colors.secondary};
   }
-`;
-
-const SavedIndicator = styled.div`
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  background-color: rgba(46, 204, 113, 0.1);
-  color: #2ecc71;
-  padding: 2px 6px;
-  border-radius: ${props => props.theme.borderRadius};
-  font-size: 11px;
-  display: ${props => props.visible ? 'block' : 'none'};
-  transition: opacity 0.3s;
-  opacity: ${props => props.visible ? 1 : 0};
 `;
 
 const ActionButton = styled.button`
@@ -207,6 +228,16 @@ const getFileNameWithoutExtension = (path) => {
 // 存储键的前缀
 const STORAGE_PREFIX = 'subtitle_summary_';
 
+// 格式化时间的辅助函数（秒转为分:秒格式）
+const formatTime = (seconds) => {
+  if (!seconds && seconds !== 0) return '--:--';
+  
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
 function SubtitleSummary({ subtitlePath, content, modelSettings }) {
   const [loading, setLoading] = useState(false);
   const [hasSettings, setHasSettings] = useState(false);
@@ -217,16 +248,21 @@ function SubtitleSummary({ subtitlePath, content, modelSettings }) {
   const [chapters, setChapters] = useState('');
   const [tags, setTags] = useState('');
   
-  // 保存指示器状态
-  const [savedTitle, setSavedTitle] = useState(false);
-  const [savedDescription, setSavedDescription] = useState(false);
-  const [savedChapters, setSavedChapters] = useState(false);
-  const [savedTags, setSavedTags] = useState(false);
+  // 状态消息
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isStatusSuccess, setIsStatusSuccess] = useState(true);
+  const [showStatus, setShowStatus] = useState(false);
   
   // 计时相关状态
   const [elapsedTime, setElapsedTime] = useState(0);
   const [totalTime, setTotalTime] = useState(null);
   const timerRef = useRef(null);
+  
+  // 文本区域引用
+  const titleRef = useRef(null);
+  const descriptionRef = useRef(null);
+  const chaptersRef = useRef(null);
+  const tagsRef = useRef(null);
   
   // 完成标志，用于指示总结过程是否完成
   const [summaryCompleted, setSummaryCompleted] = useState(false);
@@ -253,6 +289,38 @@ function SubtitleSummary({ subtitlePath, content, modelSettings }) {
       setHasSettings(false);
     }
   }, [modelSettings]);
+
+  // 显示状态消息的函数
+  const showStatusMessage = (message, success = true) => {
+    setStatusMessage(message);
+    setIsStatusSuccess(success);
+    setShowStatus(true);
+    
+    // 3秒后隐藏消息
+    setTimeout(() => {
+      setShowStatus(false);
+    }, 3000);
+  };
+
+  // 自动调整文本区域高度的函数
+  const adjustTextareaHeight = (textarea) => {
+    if (!textarea) return;
+    
+    // 重置高度以获取正确的scrollHeight
+    textarea.style.height = 'auto';
+    
+    // 设置高度为scrollHeight
+    const scrollHeight = textarea.scrollHeight;
+    textarea.style.height = scrollHeight + 'px';
+  };
+  
+  // 当内容改变时调整文本区域高度
+  useEffect(() => {
+    if (titleRef.current) adjustTextareaHeight(titleRef.current);
+    if (descriptionRef.current) adjustTextareaHeight(descriptionRef.current);
+    if (chaptersRef.current) adjustTextareaHeight(chaptersRef.current);
+    if (tagsRef.current) adjustTextareaHeight(tagsRef.current);
+  }, [title, description, chapters, tags]);
   
   // 加载保存的总结内容
   const loadSavedSummary = () => {
@@ -299,25 +367,25 @@ function SubtitleSummary({ subtitlePath, content, modelSettings }) {
   // 处理标题变更并自动保存
   const handleTitleChange = (e) => {
     setTitle(e.target.value);
-    setSavedTitle(false);
+    adjustTextareaHeight(e.target);
   };
   
   // 处理简介变更并自动保存
   const handleDescriptionChange = (e) => {
     setDescription(e.target.value);
-    setSavedDescription(false);
+    adjustTextareaHeight(e.target);
   };
   
   // 处理章节变更并自动保存
   const handleChaptersChange = (e) => {
     setChapters(e.target.value);
-    setSavedChapters(false);
+    adjustTextareaHeight(e.target);
   };
   
   // 处理标签变更并自动保存
   const handleTagsChange = (e) => {
     setTags(e.target.value);
-    setSavedTags(false);
+    adjustTextareaHeight(e.target);
   };
   
   // 输入完成后自动保存（使用防抖）
@@ -325,19 +393,10 @@ function SubtitleSummary({ subtitlePath, content, modelSettings }) {
     const saveTimeout = setTimeout(() => {
       saveSummary();
       
-      // 显示已保存指示器
-      if (title) setSavedTitle(true);
-      if (description) setSavedDescription(true);
-      if (chapters) setSavedChapters(true);
-      if (tags) setSavedTags(true);
-      
-      // 3秒后隐藏已保存指示器
-      setTimeout(() => {
-        setSavedTitle(false);
-        setSavedDescription(false);
-        setSavedChapters(false);
-        setSavedTags(false);
-      }, 3000);
+      // 显示已保存消息
+      if (title || description || chapters || tags) {
+        showStatusMessage('内容已保存');
+      }
       
     }, 1000); // 1秒防抖
     
@@ -349,27 +408,27 @@ function SubtitleSummary({ subtitlePath, content, modelSettings }) {
     try {
       await navigator.clipboard.writeText(text);
       
-      // 显示已复制指示器
+      // 显示已复制消息
+      let sectionName = '';
       switch (section) {
         case 'title':
-          setSavedTitle(true);
-          setTimeout(() => setSavedTitle(false), 3000);
+          sectionName = '标题';
           break;
         case 'description':
-          setSavedDescription(true);
-          setTimeout(() => setSavedDescription(false), 3000);
+          sectionName = '简介';
           break;
         case 'chapters':
-          setSavedChapters(true);
-          setTimeout(() => setSavedChapters(false), 3000);
+          sectionName = '章节';
           break;
         case 'tags':
-          setSavedTags(true);
-          setTimeout(() => setSavedTags(false), 3000);
+          sectionName = '标签';
           break;
       }
+      
+      showStatusMessage(`${sectionName}已复制到剪贴板`);
     } catch (error) {
       console.error('复制到剪贴板失败:', error);
+      showStatusMessage('复制失败，请重试', false);
     }
   };
   
@@ -592,6 +651,15 @@ ${content}`;
             </ButtonIcon>
             生成总结
           </ActionButton>
+          
+          {/* 状态消息显示区域 */}
+          <StatusMessage 
+            success={isStatusSuccess} 
+            error={!isStatusSuccess}
+            visible={showStatus}
+          >
+            {statusMessage}
+          </StatusMessage>
         </SummaryToolbar>
       </SummaryHeader>
       
@@ -615,19 +683,20 @@ ${content}`;
                     <ButtonIcon>
                       <span role="img" aria-label="copy">📋</span>
                     </ButtonIcon>
-                    复制
+                    复制标题
                   </CopyButton>
                 )}
               </SectionActions>
             </SectionHeader>
             <SummaryTextArea
+              ref={titleRef}
               value={title}
               onChange={handleTitleChange}
               placeholder="生成的视频标题将显示在这里..."
               minHeight="40px"
               disabled={loading}
+              isTitle
             />
-            <SavedIndicator visible={savedTitle}>已保存</SavedIndicator>
           </SectionContainer>
           
           {/* 简介部分 */}
@@ -643,19 +712,19 @@ ${content}`;
                     <ButtonIcon>
                       <span role="img" aria-label="copy">📋</span>
                     </ButtonIcon>
-                    复制
+                    复制简介
                   </CopyButton>
                 )}
               </SectionActions>
             </SectionHeader>
             <SummaryTextArea
+              ref={descriptionRef}
               value={description}
               onChange={handleDescriptionChange}
               placeholder="生成的视频简介将显示在这里..."
               minHeight="120px"
               disabled={loading}
             />
-            <SavedIndicator visible={savedDescription}>已保存</SavedIndicator>
           </SectionContainer>
           
           {/* 章节部分 */}
@@ -671,19 +740,19 @@ ${content}`;
                     <ButtonIcon>
                       <span role="img" aria-label="copy">📋</span>
                     </ButtonIcon>
-                    复制
+                    复制章节
                   </CopyButton>
                 )}
               </SectionActions>
             </SectionHeader>
             <SummaryTextArea
+              ref={chaptersRef}
               value={chapters}
               onChange={handleChaptersChange}
               placeholder="生成的视频章节将显示在这里..."
               minHeight="100px"
               disabled={loading}
             />
-            <SavedIndicator visible={savedChapters}>已保存</SavedIndicator>
           </SectionContainer>
           
           {/* 标签部分 */}
@@ -699,19 +768,19 @@ ${content}`;
                     <ButtonIcon>
                       <span role="img" aria-label="copy">📋</span>
                     </ButtonIcon>
-                    复制
+                    复制标签
                   </CopyButton>
                 )}
               </SectionActions>
             </SectionHeader>
             <SummaryTextArea
+              ref={tagsRef}
               value={tags}
               onChange={handleTagsChange}
               placeholder="生成的视频标签将显示在这里..."
               minHeight="50px"
               disabled={loading}
             />
-            <SavedIndicator visible={savedTags}>已保存</SavedIndicator>
           </SectionContainer>
           
           {loading && (
