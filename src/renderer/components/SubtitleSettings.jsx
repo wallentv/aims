@@ -38,7 +38,7 @@ const OptionButton = styled.button`
   min-width: 60px; /* 减小最小宽度 */
   text-align: center;
   font-weight: ${props => props.selected ? '500' : '400'};
-  font-size: 11px; /* 减小字体大小 */
+  font-size: 13px; /* 增加字体大小，使按钮文字更加明显 */
   
   &:hover {
     background-color: #383838;
@@ -65,11 +65,12 @@ const ModelSettingsButton = styled.button`
   color: ${props => props.theme.colors.secondary};
   border: 1px solid ${props => props.theme.colors.secondary};
   border-radius: ${props => props.theme.borderRadius};
-  padding: 6px 12px;
-  margin-top: 12px;
+  padding: 8px 12px;
+  margin-top: 20px; // 增加顶部边距，与上方选项组分隔更明显
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px; // 与其他按钮保持一致的字体大小
   transition: background-color 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // 添加轻微阴影效果增强视觉区分
   
   &:hover {
     background-color: rgba(33, 134, 208, 0.1);
@@ -100,12 +101,6 @@ function SubtitleSettings({ settings, onChange, onOpenModelSettings }) {
     { value: 'srt', label: 'SRT' },
     { value: 'ssa', label: 'SSA' }
   ];
-
-  const precisionOptions = [
-    { value: 'high', label: '高精度' },
-    { value: 'medium', label: '中精度' },
-    { value: 'low', label: '低精度' }
-  ];
   
   const handleLanguageChange = (value) => {
     onChange({ ...settings, language: value });
@@ -113,10 +108,6 @@ function SubtitleSettings({ settings, onChange, onOpenModelSettings }) {
   
   const handleFormatChange = (value) => {
     onChange({ ...settings, format: value });
-  };
-
-  const handlePrecisionChange = (value) => {
-    onChange({ ...settings, precision: value });
   };
   
   return (
@@ -147,21 +138,6 @@ function SubtitleSettings({ settings, onChange, onOpenModelSettings }) {
                 onClick={() => handleFormatChange(format.value)}
               >
                 {format.label}
-              </OptionButton>
-            ))}
-          </OptionsTable>
-        </Group>
-
-        <Group>
-          <GroupTitle>语音识别精度</GroupTitle>
-          <OptionsTable>
-            {precisionOptions.map(option => (
-              <OptionButton 
-                key={option.value}
-                selected={settings.precision === option.value}
-                onClick={() => handlePrecisionChange(option.value)}
-              >
-                {option.label}
               </OptionButton>
             ))}
           </OptionsTable>

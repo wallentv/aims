@@ -102,7 +102,7 @@ const CollapseIcon = styled.span`
 
 // 历史修订记录面板
 const HistoryPanel = styled.div`
-  position: absolute;
+  position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
@@ -111,10 +111,11 @@ const HistoryPanel = styled.div`
   border-left: 1px solid rgba(255, 255, 255, 0.1);
   transform: translateX(${props => props.isOpen ? '0' : '100%'});
   transition: transform 0.3s ease;
-  z-index: 10;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
 `;
 
 const HistoryHeader = styled.div`
@@ -302,10 +303,11 @@ const SaveTime = styled.span`
 `;
 
 const HistoryFooter = styled.div`
-  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.medium};
+  padding: ${props => props.theme.spacing.medium};
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
+  margin-top: auto;
 `;
 
 // 弹窗样式
@@ -1051,17 +1053,6 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
             <HistoryHeader>
               <HistoryTitle>历史修订记录</HistoryTitle>
               <HistoryActions>
-                {revisionHistory.length > 0 && (
-                  <ActionButton 
-                    onClick={() => setShowConfirmDialog(true)}
-                    title="清除所有历史记录"
-                  >
-                    <ButtonIcon>
-                      <span role="img" aria-label="clear">🗑️</span>
-                    </ButtonIcon>
-                    清除
-                  </ActionButton>
-                )}
                 <HistoryClose onClick={toggleHistoryPanel}>✕</HistoryClose>
               </HistoryActions>
             </HistoryHeader>
@@ -1088,6 +1079,19 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
                 ))
               )}
             </HistoryList>
+            <HistoryFooter>
+              {revisionHistory.length > 0 && (
+                <ActionButton 
+                  onClick={() => setShowConfirmDialog(true)}
+                  title="清除所有历史记录"
+                >
+                  <ButtonIcon>
+                    <span role="img" aria-label="clear">🗑️</span>
+                  </ButtonIcon>
+                  清除
+                </ActionButton>
+              )}
+            </HistoryFooter>
           </HistoryPanel>
           
           {/* 确认对话框 */}

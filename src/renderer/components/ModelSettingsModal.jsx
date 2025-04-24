@@ -183,6 +183,9 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
   // 当前活动的提示词类型 (新增)
   const [activePromptType, setActivePromptType] = useState('revision');
   
+  // 语音识别精度设置
+  const [precision, setPrecision] = useState('medium');
+
   // 加载设置
   useEffect(() => {
     if (settings) {
@@ -194,6 +197,9 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
       
       // 加载字幕总结提示词模板
       setSummaryPromptTemplate(settings.summaryPromptTemplate || DEFAULT_SUMMARY_PROMPT);
+
+      // 加载语音识别精度设置
+      setPrecision(settings.precision || 'medium');
       
       // 初始化提供商设置
       const newProviderSettings = getDefaultProviderSettings();
@@ -263,6 +269,11 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
   const handlePromptTypeChange = (type) => {
     setActivePromptType(type);
   };
+
+  // 处理语音识别精度变更
+  const handlePrecisionChange = (value) => {
+    setPrecision(value);
+  };
   
   // 处理表单提交
   const handleSubmit = (e) => {
@@ -273,6 +284,7 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
       provider: currentProvider,
       revisionPromptTemplate: revisionPromptTemplate,
       summaryPromptTemplate: summaryPromptTemplate,
+      precision: precision, // 添加语音识别精度设置
       providerSettings: providerSettings,
       // 在顶层包含当前提供商的设置（向后兼容）
       ...providerSettings[currentProvider]
@@ -339,6 +351,33 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
                     <option key={model.id} value={model.id}>{model.name}</option>
                   ))}
                 </Select>
+              </FormGroup>
+            </FormRow>
+            
+            {/* 语音识别精度设置 */}
+            <FormRow>
+              <FormGroup style={{ flex: 1 }}>
+                <Label>语音识别精度</Label>
+                <PrecisionOptionsContainer>
+                  <PrecisionOption 
+                    selected={precision === 'high'} 
+                    onClick={() => handlePrecisionChange('high')}
+                  >
+                    高精度
+                  </PrecisionOption>
+                  <PrecisionOption 
+                    selected={precision === 'medium'} 
+                    onClick={() => handlePrecisionChange('medium')}
+                  >
+                    中精度
+                  </PrecisionOption>
+                  <PrecisionOption 
+                    selected={precision === 'low'} 
+                    onClick={() => handlePrecisionChange('low')}
+                  >
+                    低精度
+                  </PrecisionOption>
+                </PrecisionOptionsContainer>
               </FormGroup>
             </FormRow>
             
@@ -502,6 +541,26 @@ const ButtonContainer = styled.div`
   margin-top: auto; // 推到底部
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   background-color: ${props => props.theme.colors.surface};
+`;
+
+const PrecisionOptionsContainer = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const PrecisionOption = styled.button`
+  flex: 1;
+  padding: 8px 12px;
+  background-color: ${props => props.selected ? props.theme.colors.secondary : props.theme.colors.surfaceLight};
+  color: ${props => props.selected ? 'white' : props.theme.colors.text};
+  border: 1px solid ${props => props.selected ? props.theme.colors.secondary : 'rgba(255, 255, 255, 0.1)'};
+  border-radius: ${props => props.theme.borderRadius};
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background-color: ${props => props.selected ? props.theme.colors.secondary : 'rgba(33, 134, 208, 0.1)'};
+  }
 `;
 
 export default ModelSettingsModal;
