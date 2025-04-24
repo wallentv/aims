@@ -60,20 +60,20 @@ const GroupTitle = styled.h3`
 const ModelSettingsButton = styled.button`
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 100%;
-  background-color: transparent;
-  color: ${props => props.theme.colors.secondary};
-  border: 1px solid ${props => props.theme.colors.secondary};
+  background-color: ${props => props.theme.colors.surfaceLight};
+  color: ${props => props.theme.colors.text};
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: ${props => props.theme.borderRadius};
-  padding: 6px 10px; /* 减小内边距 */
-  margin-top: 12px; /* 减少顶部边距但保持区分 */
+  padding: 8px 10px;
+  margin-top: 6px;
   cursor: pointer;
-  font-size: 12px; /* 减小字体大小 */
-  transition: background-color 0.2s;
+  font-size: 12px;
+  width: 100%;
+  transition: all 0.2s;
   
   &:hover {
-    background-color: rgba(33, 134, 208, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: ${props => props.theme.colors.secondary};
   }
 `;
 
@@ -136,11 +136,14 @@ function SubtitleSettings({ settings, onChange, onOpenModelSettings }) {
           </OptionsTable>
         </Group>
         
-        {/* AI模型设置按钮 */}
-        <ModelSettingsButton onClick={onOpenModelSettings}>
-          <ButtonIcon>⚙️</ButtonIcon>
-          AI模型设置
-        </ModelSettingsButton>
+        {/* AI模型设置选项 - 改为与其他Group保持一致 */}
+        <Group>
+          <GroupTitle>AI模型</GroupTitle>
+          <ModelSettingsButton onClick={onOpenModelSettings}>
+            <ButtonIcon>⚙️</ButtonIcon>
+            配置AI模型设置
+          </ModelSettingsButton>
+        </Group>
       </SettingsGrid>
     </Container>
   );

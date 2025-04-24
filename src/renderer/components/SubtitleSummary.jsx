@@ -16,7 +16,8 @@ import {
   SectionTitle,
   SectionActions,
   CopyButton,
-  TextEditor
+  TextEditor,
+  ActionBar
 } from '../styles/SharedStyles';
 import styled from 'styled-components';
 
@@ -38,6 +39,24 @@ const StyledModuleContent = styled(ModuleContent)`
   }
 `;
 
+// 自定义工具栏样式，使其支持两侧对齐
+const StyledModuleToolbar = styled(ModuleToolbar)`
+  display: flex;
+  width: 100%;
+`;
+
+// 左侧工具栏区域
+const LeftToolbarSection = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
+// 右侧工具栏区域
+const RightToolbarSection = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
 // 自定义TextEditor样式，确保宽度对齐和填满
 const StyledTextEditor = styled(TextEditor)`
   width: 100%;
@@ -50,12 +69,12 @@ const HoverableSectionContainer = styled(SectionContainer)`
   position: relative;
 `;
 
-// 定制化复制按钮，只显示文字，根据悬停状态显示或隐藏
-const HoverCopyButton = styled(CopyButton)`
+// 定制化复制按钮，只显示文字，放在右下角
+const BottomRightCopyButton = styled(CopyButton)`
   display: ${props => props.visible ? 'block' : 'none'};
   position: absolute;
-  right: 10px;
-  top: 10px;
+  right: 8px;
+  bottom: 15px;
   background-color: rgba(0, 0, 0, 0.6);
   color: white;
   border-radius: 4px;
@@ -406,26 +425,26 @@ ${content}`;
         let parsedTags = '';
         
         // 提取标题部分
-        const titleMatch = result.match(/# 标题\s*\n([\s\S]*?)(?=\n# 简介|\n# 描述|\n# 章节|\n# 标签|$)/);
+        const titleMatch = result.match(/# 标题\\s*\\n([\\s\\S]*?)(?=\\n# 简介|\\n# 描述|\\n# 章节|\\n# 标签|$)/);
         if (titleMatch && titleMatch[1]) {
           parsedTitle = titleMatch[1].trim();
         }
         
         // 提取简介部分
-        const descMatch = result.match(/# 简介\s*\n([\s\S]*?)(?=\n# 章节|\n# 标签|$)/) || 
-                          result.match(/# 描述\s*\n([\s\S]*?)(?=\n# 章节|\n# 标签|$)/);
+        const descMatch = result.match(/# 简介\\s*\\n([\\s\\S]*?)(?=\\n# 章节|\\n# 标签|$)/) || 
+                          result.match(/# 描述\\s*\\n([\\s\\S]*?)(?=\\n# 章节|\\n# 标签|$)/);
         if (descMatch && descMatch[1]) {
           parsedDescription = descMatch[1].trim();
         }
         
         // 提取章节部分
-        const chaptersMatch = result.match(/# 章节\s*\n([\s\S]*?)(?=\n# 标签|$)/);
+        const chaptersMatch = result.match(/# 章节\\s*\\n([\\s\\S]*?)(?=\\n# 标签|$)/);
         if (chaptersMatch && chaptersMatch[1]) {
           parsedChapters = chaptersMatch[1].trim();
         }
         
         // 提取标签部分
-        const tagsMatch = result.match(/# 标签\s*\n([\s\S]*?)(?=$)/);
+        const tagsMatch = result.match(/# 标签\\s*\\n([\\s\\S]*?)(?=$)/);
         if (tagsMatch && tagsMatch[1]) {
           parsedTags = tagsMatch[1].trim();
         }
@@ -439,7 +458,7 @@ ${content}`;
           }
           
           // 尝试通过关键词匹配其他部分
-          const lines = result.split('\n');
+          const lines = result.split('\\n');
           let currentSection = '';
           
           for (const line of lines) {
@@ -472,13 +491,13 @@ ${content}`;
                   if (!parsedTitle) parsedTitle = trimmedLine;
                   break;
                 case 'description':
-                  parsedDescription += (parsedDescription ? '\n' : '') + trimmedLine;
+                  parsedDescription += (parsedDescription ? '\\n' : '') + trimmedLine;
                   break;
                 case 'chapters':
-                  parsedChapters += (parsedChapters ? '\n' : '') + trimmedLine;
+                  parsedChapters += (parsedChapters ? '\\n' : '') + trimmedLine;
                   break;
                 case 'tags':
-                  parsedTags += (parsedTags ? '\n' : '') + trimmedLine;
+                  parsedTags += (parsedTags ? '\\n' : '') + trimmedLine;
                   break;
               }
             }
@@ -534,32 +553,17 @@ ${content}`;
   return (
     <ModuleContainer>
       <ModuleHeader>
-        <ModuleToolbar>
-          <ActionButton 
-            primary 
-            onClick={handleGenerateSummary}
-            disabled={!hasSettings || !content || loading}
-            title={!hasSettings ? "请先配置AI模型" : "使用AI生成总结"}
-          >
-            <ButtonIcon>
-              <span role="img" aria-label="ai">✨</span>
-            </ButtonIcon>
-            生成总结
-          </ActionButton>
-          
-          {/* 复制全部按钮 */}
-          {summaryCompleted && (
-            <ActionButton
-              onClick={copyAllToClipboard}
-              disabled={!title && !description && !chapters && !tags}
-              title="复制所有总结内容"
+        <StyledModuleToolbar>
+          <LeftToolbarSection>
+            <ActionButton 
+              primary 
+              onClick={handleGenerateSummary}
+              disabled={!hasSettings || !content || loading}
+              title={!hasSettings ? "请先配置AI模型" : "使用AI生成总结"}
             >
-              <ButtonIcon>
-                <span role="img" aria-label="copy">📋</span>
-              </ButtonIcon>
-              复制全部
+              AI生成总结
             </ActionButton>
-          )}
+          </LeftToolbarSection>
           
           {/* 状态消息显示区域 */}
           {showStatus && (
@@ -571,7 +575,7 @@ ${content}`;
               {statusMessage}
             </StatusMessage>
           )}
-        </ModuleToolbar>
+        </StyledModuleToolbar>
       </ModuleHeader>
       
       {!subtitlePath ? (
@@ -599,13 +603,13 @@ ${content}`;
               isTitle
             />
             {title && (
-              <HoverCopyButton 
+              <BottomRightCopyButton 
                 onClick={() => copyToClipboard(title, 'title')}
                 title="复制标题"
                 visible={hoveredSection === 'title'}
               >
                 复制
-              </HoverCopyButton>
+              </BottomRightCopyButton>
             )}
           </HoverableSectionContainer>
           
@@ -626,13 +630,13 @@ ${content}`;
               disabled={loading}
             />
             {description && (
-              <HoverCopyButton 
+              <BottomRightCopyButton 
                 onClick={() => copyToClipboard(description, 'description')}
                 title="复制简介"
                 visible={hoveredSection === 'description'}
               >
                 复制
-              </HoverCopyButton>
+              </BottomRightCopyButton>
             )}
           </HoverableSectionContainer>
           
@@ -654,13 +658,13 @@ ${content}`;
               isMonospace={true}
             />
             {chapters && (
-              <HoverCopyButton 
+              <BottomRightCopyButton 
                 onClick={() => copyToClipboard(chapters, 'chapters')}
                 title="复制章节"
                 visible={hoveredSection === 'chapters'}
               >
                 复制
-              </HoverCopyButton>
+              </BottomRightCopyButton>
             )}
           </HoverableSectionContainer>
           
@@ -681,13 +685,13 @@ ${content}`;
               disabled={loading}
             />
             {tags && (
-              <HoverCopyButton 
+              <BottomRightCopyButton 
                 onClick={() => copyToClipboard(tags, 'tags')}
                 title="复制标签"
                 visible={hoveredSection === 'tags'}
               >
                 复制
-              </HoverCopyButton>
+              </BottomRightCopyButton>
             )}
           </HoverableSectionContainer>
           
@@ -710,6 +714,21 @@ ${content}`;
             </TimingInfo>
           )}
         </StyledModuleContent>
+      )}
+      
+      {/* 底部操作栏 - 添加复制全部按钮 */}
+      {summaryCompleted && subtitlePath && (
+        <ActionBar>
+          <div style={{ marginLeft: 'auto' }}>
+            <ActionButton 
+              onClick={copyAllToClipboard}
+              disabled={!title && !description && !chapters && !tags}
+              primary
+            >
+              复制全部
+            </ActionButton>
+          </div>
+        </ActionBar>
       )}
     </ModuleContainer>
   );

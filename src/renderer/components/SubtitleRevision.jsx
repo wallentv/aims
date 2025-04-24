@@ -616,10 +616,7 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
             disabled={!hasSettings || !content || loading}
             title={!hasSettings ? "请先配置AI模型" : "使用AI修订字幕"}
           >
-            <ButtonIcon>
-              <span role="img" aria-label="ai">✨</span>
-            </ButtonIcon>
-            AI修订
+            AI字幕修订
           </ActionButton>
           
           {/* 显示保存成功消息 */}
