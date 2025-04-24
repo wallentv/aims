@@ -8,52 +8,53 @@ const Container = styled.div`
 const SettingsGrid = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${props => props.theme.spacing.small}; /* 减小间距 */
+  gap: 8px; /* 进一步缩小组件间距 */
 `;
 
 const Group = styled.div`
   background-color: ${props => props.theme.colors.surfaceLight};
-  padding: ${props => props.theme.spacing.small}; /* 减小内边距 */
+  padding: 8px 10px; /* 固定更小的内边距，使布局更紧凑 */
   border-radius: ${props => props.theme.borderRadius};
+  border: 1px solid rgba(255, 255, 255, 0.05); /* 添加微妙的边框 */
 `;
 
 const OptionsTable = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 4px; /* 进一步减小间距 */
-  margin-top: 4px; /* 减小上边距 */
+  gap: 3px; /* 减小选项间距 */
+  margin-top: 2px; /* 进一步减小标题和选项之间的间距 */
 `;
 
 const OptionButton = styled.button`
-  padding: 4px 8px; /* 固定较小的内边距 */
-  background-color: ${props => props.theme.colors.surface};
+  padding: 3px 6px; /* 减小按钮内部填充 */
+  background-color: ${props => 
+    props.selected ? 'rgba(33, 134, 208, 0.15)' : props.theme.colors.surface};
   color: ${props => 
     props.selected ? props.theme.colors.secondary : props.theme.colors.text};
   border: ${props => 
-    props.selected ? `1px solid ${props.theme.colors.secondary}` : 'none'};
+    props.selected ? `1px solid ${props.theme.colors.secondary}` : '1px solid transparent'};
   border-radius: ${props => props.theme.borderRadius};
   cursor: pointer;
   transition: all 0.2s ease;
   flex: 1;
-  min-width: 60px; /* 减小最小宽度 */
+  min-width: 50px; /* 更小的最小宽度 */
   text-align: center;
   font-weight: ${props => props.selected ? '500' : '400'};
-  font-size: 13px; /* 增加字体大小，使按钮文字更加明显 */
+  font-size: 12px; /* 略微减小字体以匹配整体紧凑感 */
   
   &:hover {
-    background-color: #383838;
-    border-color: ${props => props.selected ? props.theme.colors.secondary : 'transparent'};
+    background-color: ${props => props.selected ? 'rgba(33, 134, 208, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
   }
 `;
 
 const GroupTitle = styled.h3`
-  font-size: 12px; /* 减小字体大小 */
-  font-weight: 400;
+  font-size: 11px; /* 更小的标题字体 */
+  font-weight: 500; /* 稍微加粗，提高可读性 */
   text-align: left;
-  margin-top: 0;
-  margin-bottom: 4px; /* 减小下边距 */
+  margin: 0 0 2px 0; /* 更紧凑的边距 */
   color: ${props => props.theme.colors.textSecondary};
-  opacity: 0.8;
+  text-transform: uppercase; /* 使用大写增强视觉层级 */
+  letter-spacing: 0.5px; /* 增加字母间距提高可读性 */
 `;
 
 const ModelSettingsButton = styled.button`
@@ -65,28 +66,20 @@ const ModelSettingsButton = styled.button`
   color: ${props => props.theme.colors.secondary};
   border: 1px solid ${props => props.theme.colors.secondary};
   border-radius: ${props => props.theme.borderRadius};
-  padding: 8px 12px;
-  margin-top: 20px; // 增加顶部边距，与上方选项组分隔更明显
+  padding: 6px 10px; /* 减小内边距 */
+  margin-top: 12px; /* 减少顶部边距但保持区分 */
   cursor: pointer;
-  font-size: 13px; // 与其他按钮保持一致的字体大小
+  font-size: 12px; /* 减小字体大小 */
   transition: background-color 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // 添加轻微阴影效果增强视觉区分
   
   &:hover {
     background-color: rgba(33, 134, 208, 0.1);
   }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    border-color: #606060;
-    color: #606060;
-  }
 `;
 
 const ButtonIcon = styled.span`
-  margin-right: 6px;
-  font-size: 16px;
+  margin-right: 5px;
+  font-size: 14px; /* 减小图标大小 */
   display: flex;
   align-items: center;
 `;
@@ -143,11 +136,9 @@ function SubtitleSettings({ settings, onChange, onOpenModelSettings }) {
           </OptionsTable>
         </Group>
         
-        {/* 添加AI模型设置按钮 */}
+        {/* AI模型设置按钮 */}
         <ModelSettingsButton onClick={onOpenModelSettings}>
-          <ButtonIcon>
-            <span role="img" aria-label="settings">⚙️</span>
-          </ButtonIcon>
+          <ButtonIcon>⚙️</ButtonIcon>
           AI模型设置
         </ModelSettingsButton>
       </SettingsGrid>

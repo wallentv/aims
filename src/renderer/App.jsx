@@ -90,34 +90,40 @@ const PanelTitle = styled.h2`
 `;
 
 const GenerateButton = styled.button`
-  background-color: ${props => props.theme.colors.secondary};
-  color: white;
-  border: none;
+  background-color: ${props => {
+    if (props.disabled) return '#606060';
+    if (props.completed) return '#383838';
+    return props.theme.colors.secondary; // 默认蓝色
+  }};
+  color: ${props => props.completed ? '#aaaaaa' : 'white'};
+  border: ${props => props.completed ? '1px solid #555555' : 'none'};
   border-radius: ${props => props.theme.borderRadius};
-  padding: 6px 12px; /* 减小内边距 */
-  font-size: 13px; /* 减小字体大小 */
-  font-weight: 500;
-  cursor: pointer;
+  padding: 8px 16px; /* 增大内边距 */
+  font-size: 14px; /* 增大字体大小 */
+  font-weight: 600; /* 加粗字体 */
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   transition: all 0.2s;
-  margin-top: ${props => props.theme.spacing.small}; /* 减小上边距 */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin-top: ${props => props.theme.spacing.medium}; /* 增加上边距，更加突出 */
+  box-shadow: ${props => props.completed ? 'none' : '0 3px 6px rgba(0, 0, 0, 0.25)'};
+  width: 100%; /* 设置宽度为100% */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 38px; /* 固定高度使按钮看起来更大 */
   
   &:hover {
-    background-color: #2186d0;
-    transform: translateY(-1px);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
+    background-color: ${props => {
+      if (props.disabled) return '#606060';
+      if (props.completed) return '#444444';
+      return '#2186d0'; // 蓝色的hover状态
+    }};
+    transform: ${props => (props.disabled || props.completed) ? 'none' : 'translateY(-2px)'};
+    box-shadow: ${props => props.completed ? 'none' : '0 4px 8px rgba(0, 0, 0, 0.3)'};
   }
   
   &:active {
     transform: translateY(0);
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.2);
-  }
-  
-  &:disabled {
-    background-color: #606060;
-    cursor: not-allowed;
-    box-shadow: none;
-    transform: none;
+    box-shadow: ${props => props.completed ? 'none' : '0 2px 4px rgba(0, 0, 0, 0.2)'};
   }
 `;
 
@@ -678,8 +684,12 @@ function App() {
                 />
               </ConfigSection>
               
-              <GenerateButton onClick={handleGenerate} disabled={processing || !selectedFile}>
-                {processing ? '处理中...' : '生成字幕'}
+              <GenerateButton 
+                onClick={handleGenerate} 
+                disabled={processing || !selectedFile}
+                completed={subtitleState.completed && !processing}
+              >
+                {processing ? '处理中...' : subtitleState.completed ? '重新生成字幕' : '生成字幕'}
               </GenerateButton>
             </PanelContent>
           </ConfigPanel>

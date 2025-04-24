@@ -30,7 +30,7 @@ const ModalContent = styled.div`
   height: 100vh;
   width: 550px; // 从450px增加到550px
   max-width: 90%;
-  overflow-y: auto;
+  overflow-y: auto; // 添加回滚动条，便于内容较多时滚动
   padding: ${props => props.theme.spacing.medium};
   box-shadow: 2px 0 15px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.3s ease-in-out;
@@ -75,7 +75,7 @@ const Form = styled.form`
   flex-direction: column;
   gap: ${props => props.theme.spacing.small}; // 减小表单元素之间的间距
   flex: 1; // 让表单占据所有可用空间
-  overflow-y: auto; // 表单内容过多时可滚动
+  // overflow-y: auto; // 移除表单的滚动条，由 ModalContent 处理
 `;
 
 const FormGroup = styled.div`
@@ -136,11 +136,11 @@ const TextArea = styled.textarea`
   font-size: 16px;
   min-height: 240px;
   resize: vertical;
-  flex: 1;
+  // flex: 1; // 移除 flex: 1，让高度自适应
   
   line-height: 1.5;
-  height: auto;
-  overflow-y: auto;
+  height: auto; // 高度自适应内容
+  // overflow-y: auto; // 移除文本区域的独立滚动条
   
   &:focus {
     outline: none;
@@ -325,6 +325,33 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
         <Form onSubmit={handleSubmit}>
           {/* 紧凑布局的表单字段 */}
           <FormSection>
+            {/* 语音识别精度设置 - 移动到最上方 */}
+            <FormRow>
+              <FormGroup style={{ flex: 1 }}>
+                <Label>语音识别精度</Label>
+                <PrecisionOptionsContainer>
+                  <PrecisionOption 
+                    selected={precision === 'high'} 
+                    onClick={() => handlePrecisionChange('high')}
+                  >
+                    高精度
+                  </PrecisionOption>
+                  <PrecisionOption 
+                    selected={precision === 'medium'} 
+                    onClick={() => handlePrecisionChange('medium')}
+                  >
+                    中精度
+                  </PrecisionOption>
+                  <PrecisionOption 
+                    selected={precision === 'low'} 
+                    onClick={() => handlePrecisionChange('low')}
+                  >
+                    低精度
+                  </PrecisionOption>
+                </PrecisionOptionsContainer>
+              </FormGroup>
+            </FormRow>
+
             <FormRow>
               <FormGroup>
                 <Label>服务提供商</Label>
@@ -354,32 +381,8 @@ function ModelSettingsModal({ isOpen, onClose, settings, onSave }) {
               </FormGroup>
             </FormRow>
             
-            {/* 语音识别精度设置 */}
-            <FormRow>
-              <FormGroup style={{ flex: 1 }}>
-                <Label>语音识别精度</Label>
-                <PrecisionOptionsContainer>
-                  <PrecisionOption 
-                    selected={precision === 'high'} 
-                    onClick={() => handlePrecisionChange('high')}
-                  >
-                    高精度
-                  </PrecisionOption>
-                  <PrecisionOption 
-                    selected={precision === 'medium'} 
-                    onClick={() => handlePrecisionChange('medium')}
-                  >
-                    中精度
-                  </PrecisionOption>
-                  <PrecisionOption 
-                    selected={precision === 'low'} 
-                    onClick={() => handlePrecisionChange('low')}
-                  >
-                    低精度
-                  </PrecisionOption>
-                </PrecisionOptionsContainer>
-              </FormGroup>
-            </FormRow>
+            {/* 语音识别精度设置 - 从这里移除 */}
+            {/* <FormRow> ... </FormRow> */}
             
             <FormRow>
               <FormGroup>
@@ -494,9 +497,10 @@ const PromptTypeButton = styled.button`
 const PromptSectionContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${props => props.theme.spacing.medium};
-  margin-top: ${props => props.theme.spacing.medium};
+  gap: ${props => props.theme.spacing.small}; // 减小间距
+  margin-top: ${props => props.theme.spacing.small}; // 减小上边距
   flex: 1;
+  overflow: hidden; // 防止溢出
 `;
 
 const PromptActions = styled.div`
@@ -529,7 +533,8 @@ const TextAreaContainer = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 300px; // 提供更大的最小高度
+  min-height: 200px; // 减少最小高度，防止内容区域过高
+  max-height: calc(100vh - 350px); // 设置最大高度，确保不会占据过多空间
 `;
 
 // 按钮容器改为固定在模态框底部

@@ -1,58 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
+import {
+  ModuleContainer,
+  ModuleHeader,
+  ModuleToolbar,
+  ModuleContent,
+  ActionButton,
+  ButtonIcon,
+  StatusMessage,
+  EmptyState,
+  LoadingOverlay,
+  Spinner,
+  TimingInfo,
+  SectionContainer,
+  SectionHeader,
+  SectionTitle,
+  SectionActions,
+  CopyButton,
+  TextEditor
+} from '../styles/SharedStyles';
 import styled from 'styled-components';
 
-const SummaryContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  position: relative;
-`;
-
-const SummaryHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: ${props => props.theme.spacing.medium};
-  position: sticky;
-  top: 0;
-  background-color: ${props => props.theme.colors.background || '#1e1e1e'};
-  z-index: 10;
-  padding: 10px 0;
-`;
-
-const SummaryTitle = styled.h3`
-  margin: 0;
-  font-size: 14px;
-  color: ${props => props.theme.colors.text};
-`;
-
-const SummaryToolbar = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const StatusMessage = styled.div`
-  display: flex;
-  align-items: center;
-  color: ${props => props.success ? '#2ecc71' : props.error ? '#e74c3c' : props.theme.colors.textSecondary};
-  font-size: 13px;
-  margin-left: 12px;
-  background-color: ${props => props.success ? 'rgba(46, 204, 113, 0.1)' : props.error ? 'rgba(231, 76, 60, 0.1)' : 'transparent'};
-  padding: 4px 8px;
-  border-radius: ${props => props.theme.borderRadius};
-  transition: opacity 0.3s;
-  opacity: ${props => props.visible ? 1 : 0};
-`;
-
-const SummaryContent = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: ${props => props.theme.spacing.medium};
+// 自定义ModuleContent样式，确保滚动和内容填充
+const StyledModuleContent = styled(ModuleContent)`
+  padding: 0 10px;
   overflow-y: auto;
-  padding-right: 6px; /* 给滚动条预留空间 */
-  
-  /* 自定义滚动条样式 */
   &::-webkit-scrollbar {
     width: 6px;
   }
@@ -67,149 +38,51 @@ const SummaryContent = styled.div`
   }
 `;
 
-const SectionContainer = styled.div`
-  background-color: ${props => props.theme.colors.surfaceLight};
-  border-radius: ${props => props.theme.borderRadius};
-  padding: ${props => props.theme.spacing.small};
+// 自定义TextEditor样式，确保宽度对齐和填满
+const StyledTextEditor = styled(TextEditor)`
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+`;
+
+// 定制化Section容器，添加悬停状态
+const HoverableSectionContainer = styled(SectionContainer)`
   position: relative;
 `;
 
-const SectionHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: ${props => props.theme.spacing.small};
-`;
-
-const SectionTitle = styled.h4`
-  margin: 0;
-  font-size: 13px;
-  font-weight: 500;
-  color: ${props => props.theme.colors.text};
-`;
-
-const SectionActions = styled.div`
-  display: flex;
-  gap: 4px;
-`;
-
-const CopyButton = styled.button`
-  background-color: transparent;
-  color: ${props => props.theme.colors.secondary};
-  border: none;
-  border-radius: ${props => props.theme.borderRadius};
-  padding: 2px 6px;
-  font-size: 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  
-  &:hover {
-    background-color: rgba(62, 166, 255, 0.1);
-  }
-`;
-
-const SummaryTextArea = styled.textarea`
-  width: 100%;
-  background-color: ${props => props.theme.colors.surface};
-  color: ${props => props.theme.colors.text};
-  border: none;
-  border-radius: ${props => props.theme.borderRadius};
-  padding: ${props => props.theme.spacing.small};
-  font-family: ${props => props.theme.fonts.main};
-  resize: none;
-  outline: none;
-  font-size: ${props => props.isTitle ? '20px' : '16px'};
-  font-weight: ${props => props.isTitle ? 'bold' : 'normal'};
-  line-height: 1.5;
-  min-height: ${props => props.minHeight || '80px'};
-  height: auto;
-  overflow-y: visible;
-  
-  &:focus {
-    box-shadow: inset 0 0 0 1px ${props => props.theme.colors.secondary};
-  }
-`;
-
-const ActionButton = styled.button`
-  background-color: ${props => props.primary ? props.theme.colors.secondary : 'transparent'};
-  color: ${props => props.primary ? 'white' : props.theme.colors.secondary};
-  border: 1px solid ${props => props.primary ? 'transparent' : props.theme.colors.secondary};
-  border-radius: ${props => props.theme.borderRadius};
-  padding: 4px 12px;
-  cursor: pointer;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  
-  &:hover {
-    background-color: ${props => props.primary ? '#2186d0' : 'rgba(33, 134, 208, 0.1)'};
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    border-color: #606060;
-    color: ${props => props.primary ? 'white' : '#606060'};
-  }
-`;
-
-const ButtonIcon = styled.span`
-  margin-right: 6px;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-`;
-
-const SummaryActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: ${props => props.theme.spacing.medium};
-`;
-
-const LoadingOverlay = styled.div`
+// 定制化复制按钮，只显示文字，根据悬停状态显示或隐藏
+const HoverCopyButton = styled(CopyButton)`
+  display: ${props => props.visible ? 'block' : 'none'};
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
+  right: 10px;
+  top: 10px;
+  background-color: rgba(0, 0, 0, 0.6);
   color: white;
-  backdrop-filter: blur(3px);
-`;
-
-const Spinner = styled.div`
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top: 3px solid ${props => props.theme.colors.secondary};
-  width: 30px;
-  height: 30px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 15px;
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  z-index: 5;
+  transition: opacity 0.2s;
+  opacity: ${props => props.visible ? 0.8 : 0};
+  
+  &:hover {
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.8);
   }
 `;
 
-const EmptyState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: ${props => props.theme.colors.textSecondary};
-  font-size: 14px;
-  text-align: center;
-  padding: ${props => props.theme.spacing.large};
-`;
+// 存储键的前缀
+const STORAGE_PREFIX = 'subtitle_summary_';
+
+// 格式化时间的辅助函数（秒转为分:秒格式）
+const formatTime = (seconds) => {
+  if (!seconds && seconds !== 0) return '--:--';
+  
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
 
 // 生成文件名不带扩展名的函数
 const getFileNameWithoutExtension = (path) => {
@@ -225,23 +98,13 @@ const getFileNameWithoutExtension = (path) => {
   return fileName.substring(0, dotIndex);
 };
 
-// 存储键的前缀
-const STORAGE_PREFIX = 'subtitle_summary_';
-
-// 格式化时间的辅助函数（秒转为分:秒格式）
-const formatTime = (seconds) => {
-  if (!seconds && seconds !== 0) return '--:--';
-  
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-};
-
 function SubtitleSummary({ subtitlePath, content, modelSettings }) {
   const [loading, setLoading] = useState(false);
   const [hasSettings, setHasSettings] = useState(false);
   
+  // 添加悬停状态
+  const [hoveredSection, setHoveredSection] = useState(null);
+
   // 总结内容状态
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -426,6 +289,37 @@ function SubtitleSummary({ subtitlePath, content, modelSettings }) {
       }
       
       showStatusMessage(`${sectionName}已复制到剪贴板`);
+    } catch (error) {
+      console.error('复制到剪贴板失败:', error);
+      showStatusMessage('复制失败，请重试', false);
+    }
+  };
+  
+  // 复制所有内容到剪贴板
+  const copyAllToClipboard = async () => {
+    try {
+      let allContent = '';
+      
+      if (title) {
+        allContent += `# 标题\n${title}\n\n`;
+      }
+      
+      if (description) {
+        allContent += `# 简介\n${description}\n\n`;
+      }
+      
+      if (chapters) {
+        allContent += `# 章节\n${chapters}\n\n`;
+      }
+      
+      if (tags) {
+        allContent += `# 标签\n${tags}`;
+      }
+      
+      if (allContent) {
+        await navigator.clipboard.writeText(allContent);
+        showStatusMessage('所有内容已复制到剪贴板');
+      }
     } catch (error) {
       console.error('复制到剪贴板失败:', error);
       showStatusMessage('复制失败，请重试', false);
@@ -617,6 +511,7 @@ ${content}`;
       setTotalTime(timeSpent);
     } catch (error) {
       console.error('生成总结出错:', error);
+      showStatusMessage(`生成失败: ${error.message}`, false);
     } finally {
       // 停止计时器
       if (timerRef.current) {
@@ -637,9 +532,9 @@ ${content}`;
   }, []);
   
   return (
-    <SummaryContainer>
-      <SummaryHeader>
-        <SummaryToolbar>
+    <ModuleContainer>
+      <ModuleHeader>
+        <ModuleToolbar>
           <ActionButton 
             primary 
             onClick={handleGenerateSummary}
@@ -652,16 +547,32 @@ ${content}`;
             生成总结
           </ActionButton>
           
+          {/* 复制全部按钮 */}
+          {summaryCompleted && (
+            <ActionButton
+              onClick={copyAllToClipboard}
+              disabled={!title && !description && !chapters && !tags}
+              title="复制所有总结内容"
+            >
+              <ButtonIcon>
+                <span role="img" aria-label="copy">📋</span>
+              </ButtonIcon>
+              复制全部
+            </ActionButton>
+          )}
+          
           {/* 状态消息显示区域 */}
-          <StatusMessage 
-            success={isStatusSuccess} 
-            error={!isStatusSuccess}
-            visible={showStatus}
-          >
-            {statusMessage}
-          </StatusMessage>
-        </SummaryToolbar>
-      </SummaryHeader>
+          {showStatus && (
+            <StatusMessage 
+              success={isStatusSuccess} 
+              error={!isStatusSuccess}
+              visible={true}
+            >
+              {statusMessage}
+            </StatusMessage>
+          )}
+        </ModuleToolbar>
+      </ModuleHeader>
       
       {!subtitlePath ? (
         <EmptyState>
@@ -669,26 +580,16 @@ ${content}`;
           <p>请先生成或加载字幕</p>
         </EmptyState>
       ) : (
-        <SummaryContent>
+        <StyledModuleContent>
           {/* 标题部分 */}
-          <SectionContainer>
+          <HoverableSectionContainer 
+            onMouseEnter={() => setHoveredSection('title')}
+            onMouseLeave={() => setHoveredSection(null)}
+          >
             <SectionHeader>
               <SectionTitle>视频标题</SectionTitle>
-              <SectionActions>
-                {title && (
-                  <CopyButton 
-                    onClick={() => copyToClipboard(title, 'title')}
-                    title="复制标题"
-                  >
-                    <ButtonIcon>
-                      <span role="img" aria-label="copy">📋</span>
-                    </ButtonIcon>
-                    复制标题
-                  </CopyButton>
-                )}
-              </SectionActions>
             </SectionHeader>
-            <SummaryTextArea
+            <StyledTextEditor
               ref={titleRef}
               value={title}
               onChange={handleTitleChange}
@@ -697,27 +598,26 @@ ${content}`;
               disabled={loading}
               isTitle
             />
-          </SectionContainer>
+            {title && (
+              <HoverCopyButton 
+                onClick={() => copyToClipboard(title, 'title')}
+                title="复制标题"
+                visible={hoveredSection === 'title'}
+              >
+                复制
+              </HoverCopyButton>
+            )}
+          </HoverableSectionContainer>
           
           {/* 简介部分 */}
-          <SectionContainer>
+          <HoverableSectionContainer
+            onMouseEnter={() => setHoveredSection('description')}
+            onMouseLeave={() => setHoveredSection(null)}
+          >
             <SectionHeader>
               <SectionTitle>视频简介</SectionTitle>
-              <SectionActions>
-                {description && (
-                  <CopyButton 
-                    onClick={() => copyToClipboard(description, 'description')}
-                    title="复制简介"
-                  >
-                    <ButtonIcon>
-                      <span role="img" aria-label="copy">📋</span>
-                    </ButtonIcon>
-                    复制简介
-                  </CopyButton>
-                )}
-              </SectionActions>
             </SectionHeader>
-            <SummaryTextArea
+            <StyledTextEditor
               ref={descriptionRef}
               value={description}
               onChange={handleDescriptionChange}
@@ -725,55 +625,54 @@ ${content}`;
               minHeight="120px"
               disabled={loading}
             />
-          </SectionContainer>
+            {description && (
+              <HoverCopyButton 
+                onClick={() => copyToClipboard(description, 'description')}
+                title="复制简介"
+                visible={hoveredSection === 'description'}
+              >
+                复制
+              </HoverCopyButton>
+            )}
+          </HoverableSectionContainer>
           
           {/* 章节部分 */}
-          <SectionContainer>
+          <HoverableSectionContainer
+            onMouseEnter={() => setHoveredSection('chapters')}
+            onMouseLeave={() => setHoveredSection(null)}
+          >
             <SectionHeader>
               <SectionTitle>视频章节</SectionTitle>
-              <SectionActions>
-                {chapters && (
-                  <CopyButton 
-                    onClick={() => copyToClipboard(chapters, 'chapters')}
-                    title="复制章节"
-                  >
-                    <ButtonIcon>
-                      <span role="img" aria-label="copy">📋</span>
-                    </ButtonIcon>
-                    复制章节
-                  </CopyButton>
-                )}
-              </SectionActions>
             </SectionHeader>
-            <SummaryTextArea
+            <StyledTextEditor
               ref={chaptersRef}
               value={chapters}
               onChange={handleChaptersChange}
               placeholder="生成的视频章节将显示在这里..."
               minHeight="100px"
               disabled={loading}
+              isMonospace={true}
             />
-          </SectionContainer>
+            {chapters && (
+              <HoverCopyButton 
+                onClick={() => copyToClipboard(chapters, 'chapters')}
+                title="复制章节"
+                visible={hoveredSection === 'chapters'}
+              >
+                复制
+              </HoverCopyButton>
+            )}
+          </HoverableSectionContainer>
           
           {/* 标签部分 */}
-          <SectionContainer>
+          <HoverableSectionContainer
+            onMouseEnter={() => setHoveredSection('tags')}
+            onMouseLeave={() => setHoveredSection(null)}
+          >
             <SectionHeader>
               <SectionTitle>视频标签</SectionTitle>
-              <SectionActions>
-                {tags && (
-                  <CopyButton 
-                    onClick={() => copyToClipboard(tags, 'tags')}
-                    title="复制标签"
-                  >
-                    <ButtonIcon>
-                      <span role="img" aria-label="copy">📋</span>
-                    </ButtonIcon>
-                    复制标签
-                  </CopyButton>
-                )}
-              </SectionActions>
             </SectionHeader>
-            <SummaryTextArea
+            <StyledTextEditor
               ref={tagsRef}
               value={tags}
               onChange={handleTagsChange}
@@ -781,7 +680,16 @@ ${content}`;
               minHeight="50px"
               disabled={loading}
             />
-          </SectionContainer>
+            {tags && (
+              <HoverCopyButton 
+                onClick={() => copyToClipboard(tags, 'tags')}
+                title="复制标签"
+                visible={hoveredSection === 'tags'}
+              >
+                复制
+              </HoverCopyButton>
+            )}
+          </HoverableSectionContainer>
           
           {loading && (
             <LoadingOverlay>
@@ -797,23 +705,13 @@ ${content}`;
           )}
 
           {!loading && totalTime && (
-            <div style={{ 
-              position: 'absolute', 
-              bottom: '10px', 
-              left: '10px', 
-              background: 'rgba(46, 204, 113, 0.1)', 
-              color: '#2ecc71',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              opacity: '0.9'
-            }}>
+            <TimingInfo>
               总结生成耗时: {formatTime(totalTime)}
-            </div>
+            </TimingInfo>
           )}
-        </SummaryContent>
+        </StyledModuleContent>
       )}
-    </SummaryContainer>
+    </ModuleContainer>
   );
 }
 

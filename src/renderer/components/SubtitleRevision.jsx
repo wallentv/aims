@@ -1,349 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
-import styled from 'styled-components';
-import { 
-  getFullModelSettings, 
-  saveFullModelSettings,
-  getActiveProvider 
-} from '../utils/ModelConfig';
-
-const RevisionContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-`;
-
-const RevisionHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: ${props => props.theme.spacing.medium};
-`;
-
-const RevisionTitle = styled.h3`
-  margin: 0;
-  font-size: 14px;
-  color: ${props => props.theme.colors.text};
-`;
-
-const RevisionToolbar = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const RevisionContent = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  position: relative;
-`;
-
-const RevisionTextArea = styled.textarea`
-  flex: 1;
-  background-color: ${props => props.theme.colors.surfaceLight};
-  color: ${props => props.theme.colors.text};
-  border: none;
-  border-radius: ${props => props.theme.borderRadius};
-  padding: ${props => props.theme.spacing.medium};
-  font-family: monospace;
-  resize: none;
-  outline: none;
-  font-size: 16px;
-  line-height: 1.5;
-  margin-bottom: ${props => props.theme.spacing.medium};
-  height: auto;
-  min-height: 100px;
-  overflow-y: auto;
-  
-  &:focus {
-    box-shadow: inset 0 0 0 1px ${props => props.theme.colors.secondary};
-  }
-`;
-
-// 可折叠的修订摘要
-const CollapsibleSummary = styled.div`
-  background-color: ${props => props.theme.colors.surface};
-  border-radius: ${props => props.theme.borderRadius};
-  margin-bottom: ${props => props.theme.spacing.medium};
-  border-left: 3px solid ${props => props.theme.colors.secondary};
-  overflow: hidden;
-  transition: max-height 0.3s ease;
-  max-height: ${props => props.isCollapsed ? '42px' : '200px'};
-`;
-
-const SummaryHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.medium};
-  font-size: 13px;
-  font-weight: 500;
-  background-color: rgba(33, 134, 208, 0.1);
-  border-bottom: ${props => props.isCollapsed ? 'none' : '1px solid rgba(255, 255, 255, 0.1)'};
-  cursor: pointer;
-`;
-
-const SummaryContent = styled.div`
-  padding: ${props => props.theme.spacing.medium};
-  font-size: 13px;
-  max-height: ${props => props.isCollapsed ? '0' : '150px'};
-  overflow-y: auto;
-  opacity: ${props => props.isCollapsed ? 0 : 1};
-  transition: max-height 0.3s ease, opacity 0.3s ease;
-`;
-
-const CollapseIcon = styled.span`
-  transform: ${props => props.isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'};
-  transition: transform 0.3s ease;
-  font-size: 12px;
-  display: inline-block;
-`;
-
-// 历史修订记录面板
-const HistoryPanel = styled.div`
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 300px;
-  background-color: ${props => props.theme.colors.surface};
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  transform: translateX(${props => props.isOpen ? '0' : '100%'});
-  transition: transform 0.3s ease;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
-`;
-
-const HistoryHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.medium};
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-`;
-
-const HistoryTitle = styled.div`
-  font-size: 14px;
-  font-weight: 500;
-`;
-
-const HistoryActions = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const HistoryClose = styled.div`
-  cursor: pointer;
-  opacity: 0.7;
-  &:hover {
-    opacity: 1;
-  }
-`;
-
-const HistoryList = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: ${props => props.theme.spacing.small};
-`;
-
-const HistoryItem = styled.div`
-  background-color: ${props => props.isSelected ? 'rgba(62, 166, 255, 0.1)' : props.theme.colors.surfaceLight};
-  border-left: ${props => props.isSelected ? '3px solid #3ea6ff' : '3px solid transparent'};
-  margin-bottom: ${props => props.theme.spacing.small};
-  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.medium};
-  border-radius: ${props => props.theme.borderRadius};
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  
-  &:hover {
-    background-color: ${props => props.isSelected ? 'rgba(62, 166, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)'};
-  }
-`;
-
-const HistoryItemHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-`;
-
-const HistoryItemTime = styled.div`
-  font-size: 11px;
-  opacity: 0.7;
-`;
-
-const HistoryItemSummary = styled.div`
-  max-height: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-`;
-
-// 按钮和其他样式
-const RevisionItem = styled.div`
-  padding: ${props => props.theme.spacing.small};
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  cursor: pointer;
-  transition: background-color 0.2s;
-  
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-  }
-  
-  &:last-child {
-    border-bottom: none;
-  }
-  
-  &.selected {
-    background-color: rgba(62, 166, 255, 0.1);
-    border-left: 3px solid ${props => props.theme.colors.secondary};
-  }
-`;
-
-const ActionButton = styled.button`
-  background-color: ${props => props.primary ? props.theme.colors.secondary : 'transparent'};
-  color: ${props => props.primary ? 'white' : props.theme.colors.secondary};
-  border: 1px solid ${props => props.primary ? 'transparent' : props.theme.colors.secondary};
-  border-radius: ${props => props.theme.borderRadius};
-  padding: 4px 12px;
-  cursor: pointer;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  
-  &:hover {
-    background-color: ${props => props.primary ? '#2186d0' : 'rgba(33, 134, 208, 0.1)'};
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    border-color: #606060;
-    color: #606060;
-  }
-`;
-
-const ButtonIcon = styled.span`
-  margin-right: 6px;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-`;
-
-const RevisionActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  margin-top: ${props => props.theme.spacing.medium};
-`;
-
-const EmptyState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: ${props => props.theme.colors.textSecondary};
-  font-size: 14px;
-  text-align: center;
-  padding: ${props => props.theme.spacing.large};
-`;
-
-const LoadingOverlay = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
-  color: white;
-  backdrop-filter: blur(3px);
-`;
-
-const Spinner = styled.div`
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top: 3px solid ${props => props.theme.colors.secondary};
-  width: 30px;
-  height: 30px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 15px;
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-
-const SaveNotification = styled.div`
-  background-color: rgba(46, 204, 113, 0.1);
-  padding: ${props => props.theme.spacing.small};
-  border-radius: ${props => props.theme.borderRadius};
-  color: #2ecc71;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  margin-right: 10px;
-  flex: 1;
-`;
-
-const SaveTime = styled.span`
-  font-weight: normal;
-  margin-left: 5px;
-`;
-
-const HistoryFooter = styled.div`
-  padding: ${props => props.theme.spacing.medium};
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  justify-content: center;
-  margin-top: auto;
-`;
-
-// 弹窗样式
-const ConfirmDialog = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
-
-const DialogContent = styled.div`
-  background-color: ${props => props.theme.colors.surface};
-  border-radius: ${props => props.theme.borderRadius};
-  padding: ${props => props.theme.spacing.medium};
-  max-width: 400px;
-  width: 90%;
-`;
-
-const DialogTitle = styled.h3`
-  font-size: 16px;
-  margin-top: 0;
-  margin-bottom: ${props => props.theme.spacing.medium};
-`;
-
-const DialogActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  margin-top: ${props => props.theme.spacing.medium};
-  gap: 8px;
-`;
+import RevisionHistory from './RevisionHistory';
+import {
+  ModuleContainer,
+  ModuleHeader,
+  ModuleToolbar,
+  ModuleContent,
+  TextEditor,
+  ActionBar,
+  ActionButton,
+  ButtonIcon,
+  StatusMessage,
+  SaveTime,
+  EmptyState,
+  LoadingOverlay,
+  Spinner,
+  CollapsiblePanel,
+  PanelHeader,
+  PanelContent,
+  CollapseIcon,
+  TimingInfo
+} from '../styles/SharedStyles';
 
 // 定义历史记录项的类型
 const createHistoryItem = (summary, content, timestamp) => ({
@@ -353,6 +29,13 @@ const createHistoryItem = (summary, content, timestamp) => ({
   id: Date.now() // 唯一ID
 });
 
+// 格式化时间为分:秒格式
+const formatTime = (seconds) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}分${remainingSeconds}秒`;
+};
+
 function SubtitleRevision({ subtitlePath, initialContent, content, onContentChange, onSaveRevision, onSummaryUpdate, modelSettings }) {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState('');
@@ -360,25 +43,22 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
   const [lastSaveTime, setLastSaveTime] = useState(null);
   const [showSaveNotification, setShowSaveNotification] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
-  // 新增状态
   const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [revisionHistory, setRevisionHistory] = useState([]);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  // 新增计时相关状态
+  
+  // 计时相关状态
   const [startTime, setStartTime] = useState(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [totalTime, setTotalTime] = useState(null);
-  const [showTimeSpent, setShowTimeSpent] = useState(false); // 新增状态：控制总耗时提示的显示
+  const [showTimeSpent, setShowTimeSpent] = useState(false);
   const timerRef = useRef(null);
-  const timeoutRef = useRef(null); // 新增引用：用于保存自动隐藏计时器
+  const timeoutRef = useRef(null);
 
-  // 初始化修订内容（只有当内容为空且有初始内容时才设置）
+  // 初始化修订内容
   useEffect(() => {
     if (subtitlePath && initialContent && !content && onContentChange) {
-      // 只在内容为空时初始化
       onContentChange(initialContent);
     }
   }, [subtitlePath, initialContent, content, onContentChange]);
@@ -395,13 +75,11 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
   // 加载历史记录
   useEffect(() => {
     try {
-      // 加载历史记录
       if (subtitlePath) {
         const historyKey = `revisionHistory_${subtitlePath}`;
         const savedHistory = localStorage.getItem(historyKey);
         if (savedHistory) {
-          const parsedHistory = JSON.parse(savedHistory);
-          setRevisionHistory(parsedHistory);
+          setRevisionHistory(JSON.parse(savedHistory));
         }
       }
     } catch (error) {
@@ -419,10 +97,9 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
   // 监听保存完成事件
   useEffect(() => {
     const handleSubtitleSaved = (data) => {
-      console.log('字幕修订保存成功，时间：', data.saveTime);
       setLastSaveTime(data.saveTime);
       setShowSaveNotification(true);
-      setIsSaving(false); // 确保保存状态被重置
+      setIsSaving(false);
       
       // 3秒后自动隐藏保存通知
       const timer = setTimeout(() => {
@@ -431,56 +108,37 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
       
       // 如果有修订摘要或内容变化，则保存到历史记录
       if (content && subtitlePath) {
-        // 获取最新的历史记录（不依赖于旧的状态）
         try {
           const historyKey = `revisionHistory_${subtitlePath}`;
           const savedHistory = localStorage.getItem(historyKey);
-          let currentHistory = [];
-          
-          if (savedHistory) {
-            currentHistory = JSON.parse(savedHistory);
-          }
+          let currentHistory = savedHistory ? JSON.parse(savedHistory) : [];
           
           // 创建新的历史记录项
           const newHistoryItem = createHistoryItem(
-            // 优先使用从保存事件接收到的摘要，其次是当前摘要状态
             data.summary || summary || '手动修订',
             content, 
             data.saveTime
           );
           
-          // 改进的重复检测逻辑
+          // 检测是否重复
           let isDuplicate = false;
-          
-          // 检查最近一次的记录是否与当前保存内容完全相同
           if (currentHistory.length > 0) {
             const lastItem = currentHistory[0];
-            
-            // 比较内容（规范化空白字符和行尾）
             const normalizedNewContent = content.replace(/\s+/g, ' ').trim();
             const normalizedOldContent = lastItem.content.replace(/\s+/g, ' ').trim();
-            
-            // 从摘要中提取基础内容（移除耗时信息）
             const newSummaryBase = (data.summary || summary || '手动修订').replace(/\n耗时:.+$/s, '').trim();
             const oldSummaryBase = lastItem.summary.replace(/\n耗时:.+$/s, '').trim();
             
-            // 如果内容和基础摘要都相同则视为重复
             if (normalizedNewContent === normalizedOldContent && newSummaryBase === oldSummaryBase) {
               isDuplicate = true;
-              console.log('检测到重复的修订记录，已跳过');
             }
           }
           
           if (!isDuplicate) {
-            // 添加新记录到历史
-            const updatedHistory = [newHistoryItem, ...currentHistory].slice(0, 20); // 最多保留20条记录
-            
-            // 保存到本地存储
+            // 添加新记录到历史，最多保留20条
+            const updatedHistory = [newHistoryItem, ...currentHistory].slice(0, 20);
             localStorage.setItem(historyKey, JSON.stringify(updatedHistory));
-            
-            // 更新状态
             setRevisionHistory(updatedHistory);
-            console.log('已添加新的修订记录');
           }
         } catch (e) {
           console.error('保存或获取历史记录失败:', e);
@@ -492,28 +150,25 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
     
     window.electron.onSubtitleSaved(handleSubtitleSaved);
     
-    // 组件卸载时清除监听器
     return () => {
       // Electron API可能不支持移除特定监听器
-      // 这里依赖Electron的清理机制
     };
-  }, [subtitlePath, content, summary]); // 只依赖这三个变量，不依赖revisionHistory
+  }, [subtitlePath, content, summary]);
 
   // 使用AI修订字幕
   const handleReviseSubtitle = async () => {
-    if (!hasSettings || !content || !modelSettings) {
-      return;
-    }
+    if (!hasSettings || !content || !modelSettings) return;
 
     setLoading(true);
     setSummary('');
-    setIsSummaryCollapsed(false); // 确保摘要展开
+    setIsSummaryCollapsed(false);
+    
     // 设置开始时间并启动计时器
     const start = Date.now();
     setStartTime(start);
     setElapsedTime(0);
     setTotalTime(null);
-    setShowTimeSpent(false); // 确保隐藏总耗时提示
+    setShowTimeSpent(false);
     
     // 启动计时器，每秒更新一次经过的时间
     timerRef.current = setInterval(() => {
@@ -533,9 +188,7 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
         },
         body: JSON.stringify({
           model: modelSettings.modelId,
-          messages: [
-            { role: "user", content: prompt }
-          ],
+          messages: [{ role: "user", content: prompt }],
           temperature: 0.3
         })
       });
@@ -596,7 +249,7 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
         setShowTimeSpent(true);
         timeoutRef.current = setTimeout(() => {
           setShowTimeSpent(false);
-        }, 5000); // 5秒后自动隐藏
+        }, 5000);
       }
     } catch (error) {
       console.error('AI修订字幕出错:', error);
@@ -605,12 +258,10 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
       setSummary(errorSummary);
       setTotalTime(timeSpent);
       
-      // 将错误总结也传递给父组件
       if (onSummaryUpdate) {
         onSummaryUpdate(errorSummary);
       }
     } finally {
-      // 停止计时器
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -619,14 +270,7 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
     }
   };
 
-  // 格式化时间为分:秒格式
-  const formatTime = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}分${remainingSeconds}秒`;
-  };
-
-  // 清理字幕内容，去除头尾的说明文字
+  // 清理字幕内容，去除头尾的说明文字 (保留现有的处理逻辑)
   const cleanSubtitleContent = (content) => {
     if (!content) return '';
     
@@ -678,17 +322,16 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
     
     let cleanedContent = content.trim();
     
-    // 首先检查SRT字幕的特征 - 通常以编号开始，如"1"，然后是时间轴如"00:00:01,000 --> 00:00:05,000"
+    // 首先检查SRT字幕的特征
     const srtPattern = /^\d+\s*\r?\n\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}/;
     
     // 如果已经是标准SRT格式，则不需要过多清理
     if (srtPattern.test(cleanedContent)) {
-      // 即使是标准SRT格式，也检查并删除最后的反引号
       cleanedContent = removeTrailingMarkdownMarkers(cleanedContent);
       return cleanedContent;
     }
     
-    // 尝试查找第一个看起来像SRT条目的内容 (数字 + 时间轴)
+    // 尝试查找第一个看起来像SRT条目的内容
     const srtEntryPattern = /^\s*(\d+)\s*\r?\n\s*(\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3})/m;
     const match = cleanedContent.match(srtEntryPattern);
     
@@ -737,8 +380,6 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
     }
     
     // 如果不是SRT格式，则执行通用文本清理
-    
-    // 移除头部标记（增强版）
     let lines = cleanedContent.split(/\r?\n/);
     let foundSrtStart = false;
     
@@ -766,7 +407,6 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
         if (firstLine === "" || headerMarkers.some(marker => 
           firstLine === marker || 
           firstLine.startsWith(marker) ||
-          // 新增：检查更长的说明文本，如"以下是修正后的SRT字幕文件，已按照您的要求..."
           firstLine.includes("以下是") && (
             firstLine.includes("SRT字幕") || 
             firstLine.includes("修订后") ||
@@ -906,13 +546,10 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
     if (onSaveRevision && subtitlePath && content) {
       setIsSaving(true);
       try {
-        // 将当前的摘要值作为属性传递给保存函数
         onSaveRevision(subtitlePath, content, summary);
-        // 保存状态通过监听器处理
       } catch (error) {
         console.error('保存修订字幕出错:', error);
       } finally {
-        // 如果监听器没有正常工作，确保保存状态最终会被重置
         setTimeout(() => {
           setIsSaving(false);
         }, 1000);
@@ -931,31 +568,26 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
   };
 
   // 从历史记录中加载内容
-  const loadFromHistory = (historyItem) => {
+  const handleLoadFromHistory = (historyItem) => {
     if (!historyItem) return;
     
     setSelectedHistoryItem(historyItem.id);
     
-    // 加载历史记录中的内容和摘要
     if (onContentChange) {
       onContentChange(historyItem.content);
     }
     setSummary(historyItem.summary);
-    setIsSummaryCollapsed(false); // 展开摘要
+    setIsSummaryCollapsed(false);
   };
 
   // 清除历史记录
-  const clearHistory = () => {
+  const handleClearHistory = () => {
     if (subtitlePath) {
       try {
         const historyKey = `revisionHistory_${subtitlePath}`;
-        // 从本地存储中删除该文件的历史记录
         localStorage.removeItem(historyKey);
-        // 清空历史记录状态
         setRevisionHistory([]);
         setSelectedHistoryItem(null);
-        // 关闭确认对话框
-        setShowConfirmDialog(false);
       } catch (error) {
         console.error('清除历史记录失败:', error);
       }
@@ -975,9 +607,9 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
   }, []);
 
   return (
-    <RevisionContainer>
-      <RevisionHeader>
-        <RevisionToolbar>
+    <ModuleContainer>
+      <ModuleHeader>
+        <ModuleToolbar>
           <ActionButton 
             primary 
             onClick={handleReviseSubtitle}
@@ -990,19 +622,29 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
             AI修订
           </ActionButton>
           
-          {revisionHistory.length > 0 && (
-            <ActionButton
-              onClick={toggleHistoryPanel}
-              title="查看历史修订记录"
-            >
-              <ButtonIcon>
-                <span role="img" aria-label="history">📋</span>
-              </ButtonIcon>
-              历史
-            </ActionButton>
+          {/* 显示保存成功消息 */}
+          {showSaveNotification && lastSaveTime && (
+            <StatusMessage success visible>
+              ✓ 保存成功 <SaveTime>{lastSaveTime}</SaveTime>
+            </StatusMessage>
           )}
-        </RevisionToolbar>
-      </RevisionHeader>
+          
+          {/* 将历史记录按钮放在最右侧 */}
+          <div style={{ marginLeft: 'auto' }}>
+            {revisionHistory.length > 0 && (
+              <ActionButton
+                onClick={toggleHistoryPanel}
+                title="查看历史修订记录"
+              >
+                <ButtonIcon>
+                  <span role="img" aria-label="history">📋</span>
+                </ButtonIcon>
+                历史记录
+              </ActionButton>
+            )}
+          </div>
+        </ModuleToolbar>
+      </ModuleHeader>
       
       {!subtitlePath ? (
         <EmptyState>
@@ -1010,107 +652,49 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
           <p>请先生成或加载字幕</p>
         </EmptyState>
       ) : (
-        <RevisionContent>
+        <ModuleContent>
           {summary && (
-            <CollapsibleSummary isCollapsed={isSummaryCollapsed}>
-              <SummaryHeader onClick={toggleSummaryCollapsed} isCollapsed={isSummaryCollapsed}>
+            <CollapsiblePanel isCollapsed={isSummaryCollapsed}>
+              <PanelHeader onClick={toggleSummaryCollapsed} isCollapsed={isSummaryCollapsed}>
                 <div>字幕修订摘要</div>
                 <CollapseIcon isCollapsed={isSummaryCollapsed}>
                   {isSummaryCollapsed ? '▶' : '▼'}
                 </CollapseIcon>
-              </SummaryHeader>
-              <SummaryContent isCollapsed={isSummaryCollapsed}>
+              </PanelHeader>
+              <PanelContent isCollapsed={isSummaryCollapsed}>
                 <div dangerouslySetInnerHTML={{ __html: summary.replace(/\n/g, '<br>') }}></div>
-              </SummaryContent>
-            </CollapsibleSummary>
+              </PanelContent>
+            </CollapsiblePanel>
           )}
           
-          <RevisionTextArea
+          <TextEditor
             value={content || ''}
             onChange={(e) => onContentChange && onContentChange(e.target.value)}
             placeholder="修订字幕将显示在这里，您可以直接编辑..."
             disabled={loading}
+            isMonospace={true}
+            noMargin
           />
           
-          <RevisionActions>
-            {/* 保存成功提示 */}
-            {showSaveNotification && lastSaveTime && (
-              <SaveNotification>
-                <span>✓ 保存成功</span>
-                <SaveTime>保存时间: {lastSaveTime}</SaveTime>
-              </SaveNotification>
-            )}
+          <ActionBar>
             <ActionButton 
               onClick={handleSave} 
               disabled={!content || loading || isSaving}
+              primary
             >
               {isSaving ? '保存中...' : '保存修订'}
             </ActionButton>
-          </RevisionActions>
+          </ActionBar>
           
-          {/* 历史修订记录面板 */}
-          <HistoryPanel isOpen={isHistoryOpen}>
-            <HistoryHeader>
-              <HistoryTitle>历史修订记录</HistoryTitle>
-              <HistoryActions>
-                <HistoryClose onClick={toggleHistoryPanel}>✕</HistoryClose>
-              </HistoryActions>
-            </HistoryHeader>
-            <HistoryList>
-              {revisionHistory.length === 0 ? (
-                <EmptyState>
-                  <p>暂无历史记录</p>
-                </EmptyState>
-              ) : (
-                revisionHistory.map(item => (
-                  <HistoryItem 
-                    key={item.id} 
-                    isSelected={selectedHistoryItem === item.id}
-                    onClick={() => loadFromHistory(item)}
-                  >
-                    <HistoryItemHeader>
-                      <div>修订版本</div>
-                      <HistoryItemTime>{item.timestamp}</HistoryItemTime>
-                    </HistoryItemHeader>
-                    <HistoryItemSummary>
-                      {item.summary.split(/\n/)[0]}
-                    </HistoryItemSummary>
-                  </HistoryItem>
-                ))
-              )}
-            </HistoryList>
-            <HistoryFooter>
-              {revisionHistory.length > 0 && (
-                <ActionButton 
-                  onClick={() => setShowConfirmDialog(true)}
-                  title="清除所有历史记录"
-                >
-                  <ButtonIcon>
-                    <span role="img" aria-label="clear">🗑️</span>
-                  </ButtonIcon>
-                  清除
-                </ActionButton>
-              )}
-            </HistoryFooter>
-          </HistoryPanel>
-          
-          {/* 确认对话框 */}
-          {showConfirmDialog && (
-            <ConfirmDialog>
-              <DialogContent>
-                <DialogTitle>确认清除历史记录</DialogTitle>
-                <p>确定要清除所有历史修订记录吗？此操作不可撤销。</p>
-                <DialogActions>
-                  <ActionButton onClick={() => setShowConfirmDialog(false)}>
-                    取消
-                  </ActionButton>
-                  <ActionButton primary onClick={clearHistory}>
-                    确认清除
-                  </ActionButton>
-                </DialogActions>
-              </DialogContent>
-            </ConfirmDialog>
-          )}
+          {/* 使用独立的历史记录组件 */}
+          <RevisionHistory 
+            isOpen={isHistoryOpen}
+            onClose={toggleHistoryPanel}
+            history={revisionHistory}
+            selectedItem={selectedHistoryItem}
+            onSelectItem={handleLoadFromHistory}
+            onClearHistory={handleClearHistory}
+          />
           
           {loading && (
             <LoadingOverlay>
@@ -1125,24 +709,14 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
             </LoadingOverlay>
           )}
 
-          {!loading && showTimeSpent && (
-            <div style={{ 
-              position: 'absolute', 
-              bottom: '10px', 
-              left: '10px', 
-              background: 'rgba(46, 204, 113, 0.1)', 
-              color: '#2ecc71',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              opacity: '0.9'
-            }}>
+          {!loading && showTimeSpent && totalTime && (
+            <TimingInfo>
               修订总耗时: {formatTime(totalTime)}
-            </div>
+            </TimingInfo>
           )}
-        </RevisionContent>
+        </ModuleContent>
       )}
-    </RevisionContainer>
+    </ModuleContainer>
   );
 }
 

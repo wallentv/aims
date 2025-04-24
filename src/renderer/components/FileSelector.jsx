@@ -6,9 +6,9 @@ const Container = styled.div`
 `;
 
 const FileButton = styled.button`
-  background-color: #1890ff;
-  color: white;
-  border: none;
+  background-color: ${props => props.hasFile ? '#3a3a3a' : '#1890ff'};
+  color: ${props => props.hasFile ? '#aaaaaa' : 'white'};
+  border: ${props => props.hasFile ? '1px solid #555555' : 'none'};
   border-radius: ${props => props.theme.borderRadius};
   padding: ${props => props.theme.spacing.small}; /* 减小按钮内边距 */
   width: 100%;
@@ -18,17 +18,18 @@ const FileButton = styled.button`
   justify-content: center;
   font-size: 12px; /* 减小字体大小 */
   font-weight: 500;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  box-shadow: ${props => props.hasFile ? 'none' : '0 2px 5px rgba(0, 0, 0, 0.3)'};
+  transition: all 0.2s ease;
   
   &:hover {
-    background-color: #0066cc;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    background-color: ${props => props.hasFile ? '#444444' : '#0066cc'};
+    transform: ${props => props.hasFile ? 'none' : 'translateY(-1px)'};
+    box-shadow: ${props => props.hasFile ? 'none' : '0 4px 8px rgba(0, 0, 0, 0.3)'};
   }
   
   &:active {
     transform: translateY(0);
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.3);
+    box-shadow: ${props => props.hasFile ? 'none' : '0 2px 3px rgba(0, 0, 0, 0.3)'};
   }
 `;
 
@@ -110,13 +111,13 @@ function FileSelector({
 
   return (
     <Container>
-      <FileButton onClick={handleFileSelect}>
+      <FileButton onClick={handleFileSelect} hasFile={!!selectedFile}>
         <FileIcon>
           <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M19 8H10L8 6H5C3.34 6 2 7.34 2 9V19C2 20.66 3.34 22 5 22H19C20.66 22 22 20.66 22 19V11C22 9.34 20.66 8 19 8ZM19 20H5V9H7.17L9.17 11H19V20Z" fill="currentColor"/>
           </svg>
         </FileIcon>
-        {label}
+        {selectedFile ? '更换视频文件' : label}
       </FileButton>
       
       {selectedFile && (
