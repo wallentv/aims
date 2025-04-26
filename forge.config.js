@@ -5,6 +5,15 @@ module.exports = {
       './extraResources'  // 使用专门的资源目录
     ],
     icon: './assets/icon', // 应用图标
+    // 添加以下配置确保构建产物包含所有必要文件
+    ignore: [
+      /^\/\.git/,
+      /^\/\.vscode/,
+      /^\/node_modules\/(?!react-scripts)/, // 保留react-scripts，排除其他node_modules
+      /^\/backend\/(venv|__pycache__)/
+    ],
+    // 确保资源正确复制
+    prune: false
   },
   rebuildConfig: {},
   makers: [

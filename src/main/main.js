@@ -97,33 +97,32 @@ const createWindow = async () => {
       console.log('资源路径:', process.resourcesPath);
       console.log('当前目录:', __dirname);
       
-      // 尝试使用更可靠的路径查找方式
-      indexPath = path.join(app.getAppPath(), 'build', 'index.html');
+      // 尝试使用更可靠的路径查找方式 - 添加更多可能的路径
+      const possiblePaths = [
+        path.join(app.getAppPath(), 'build', 'index.html'),
+        path.join(process.resourcesPath, 'app.asar', 'build', 'index.html'),
+        path.join(process.resourcesPath, 'app', 'build', 'index.html'),
+        path.join(__dirname, '../../build/index.html'),
+        path.join(__dirname, '../build/index.html'),
+        path.join(__dirname, '../renderer/index.html'),
+        path.join(app.getAppPath(), 'index.html')
+      ];
       
-      // 如果主路径不存在，尝试备用路径
-      if (!fs.existsSync(indexPath)) {
-        console.log(`主路径不存在: ${indexPath}，尝试备用路径`);
-        
-        // 备用路径列表
-        const alternativePaths = [
-          path.join(process.resourcesPath, '..', 'app.asar', 'build', 'index.html'),
-          path.join(process.resourcesPath, 'app.asar', 'build', 'index.html'),
-          path.join(process.resourcesPath, 'app', 'build', 'index.html'),
-          path.join(__dirname, '../../build/index.html')
-        ];
-        
-        // 遍历检查备用路径
-        for (const altPath of alternativePaths) {
-          console.log(`检查备用路径: ${altPath}`);
-          if (fs.existsSync(altPath)) {
-            indexPath = altPath;
-            console.log(`找到有效路径: ${indexPath}`);
-            break;
-          }
+      // 遍历所有可能的路径
+      for (const possiblePath of possiblePaths) {
+        console.log(`检查HTML路径: ${possiblePath}`);
+        if (fs.existsSync(possiblePath)) {
+          indexPath = possiblePath;
+          console.log(`找到有效的HTML路径: ${indexPath}`);
+          break;
         }
       }
       
-      console.log('最终加载HTML路径:', indexPath);
+      // 如果没有找到任何路径，使用默认路径
+      if (!indexPath) {
+        indexPath = path.join(app.getAppPath(), 'build', 'index.html');
+        console.log(`未找到有效路径，使用默认路径: ${indexPath}`);
+      }
     } else {
       // 本地开发非调试模式
       indexPath = path.join(__dirname, '../../build/index.html');
