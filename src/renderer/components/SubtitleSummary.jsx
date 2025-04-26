@@ -426,6 +426,10 @@ function SubtitleSummary({ subtitlePath, content, modelSettings }) {
       return;
     }
     
+    // 添加日志以检查内容是否为空
+    console.log("正在生成总结，字幕内容长度:", content ? content.length : 0);
+    console.log("字幕内容前100个字符:", content ? content.substring(0, 100) : "无内容");
+    
     setLoading(true);
     setSummaryCompleted(false);
     
@@ -499,29 +503,38 @@ ${content}`;
         let parsedChapters = '';
         let parsedTags = '';
         
-        // 提取标题部分
-        const titleMatch = result.match(/# 标题\\s*\\n([\\s\\S]*?)(?=\\n# 简介|\\n# 描述|\\n# 章节|\\n# 标签|$)/);
-        if (titleMatch && titleMatch[1]) {
-          parsedTitle = titleMatch[1].trim();
+        // 记录原始响应结果
+        console.log("模型返回原始内容:", result);
+        
+        // 使用简单的字符串匹配模式提取内容
+        let titleSection = result.split("# 标题");
+        if (titleSection.length > 1) {
+          let titlePart = titleSection[1].split("#")[0].trim();
+          parsedTitle = titlePart;
         }
         
-        // 提取简介部分
-        const descMatch = result.match(/# 简介\\s*\\n([\\s\\S]*?)(?=\\n# 章节|\\n# 标签|$)/) || 
-                          result.match(/# 描述\\s*\\n([\\s\\S]*?)(?=\\n# 章节|\\n# 标签|$)/);
-        if (descMatch && descMatch[1]) {
-          parsedDescription = descMatch[1].trim();
+        let descSection = result.split("# 简介");
+        if (descSection.length > 1) {
+          let descPart = descSection[1].split("#")[0].trim();
+          parsedDescription = descPart;
+        } else {
+          // 尝试查找"# 描述"
+          descSection = result.split("# 描述");
+          if (descSection.length > 1) {
+            let descPart = descSection[1].split("#")[0].trim();
+            parsedDescription = descPart;
+          }
         }
         
-        // 提取章节部分
-        const chaptersMatch = result.match(/# 章节\\s*\\n([\\s\\S]*?)(?=\\n# 标签|$)/);
-        if (chaptersMatch && chaptersMatch[1]) {
-          parsedChapters = chaptersMatch[1].trim();
+        let chaptersSection = result.split("# 章节");
+        if (chaptersSection.length > 1) {
+          let chaptersPart = chaptersSection[1].split("#")[0].trim();
+          parsedChapters = chaptersPart;
         }
         
-        // 提取标签部分
-        const tagsMatch = result.match(/# 标签\\s*\\n([\\s\\S]*?)(?=$)/);
-        if (tagsMatch && tagsMatch[1]) {
-          parsedTags = tagsMatch[1].trim();
+        let tagsSection = result.split("# 标签");
+        if (tagsSection.length > 1) {
+          parsedTags = tagsSection[1].trim();
         }
         
         // 若模型未按照格式输出，尝试更宽松的匹配
@@ -594,6 +607,14 @@ ${content}`;
           updatedAt: new Date().toISOString()
         };
         
+        // 在控制台中打印总结结果
+        console.log("===== 视频总结结果 =====");
+        console.log("标题:", parsedTitle);
+        console.log("简介:", parsedDescription);
+        console.log("章节:", parsedChapters);
+        console.log("标签:", parsedTags);
+        console.log("=====================");
+        
         localStorage.setItem(storageKey.current, JSON.stringify(summaryData));
         
         // 设置总结完成标志
@@ -655,13 +676,7 @@ ${content}`;
               </StatusMessage>
             )}
           </ToolbarGroup>
-          <ToolbarRightSection>
-            {totalTime !== null && !loading && (
-              <TimingInfo>
-                总耗时: {formatTime(totalTime)}
-              </TimingInfo>
-            )}
-          </ToolbarRightSection>
+  
         </EnhancedToolbar>
       </ModuleHeader>
       
@@ -782,7 +797,7 @@ ${content}`;
             )}
           </HoverableSectionContainer>
           
-          {loading && (
+          {loading && !summaryCompleted && (
             <LoadingOverlay>
               <Spinner />
               <div>正在生成视频内容总结...</div>
