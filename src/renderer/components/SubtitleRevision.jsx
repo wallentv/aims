@@ -21,6 +21,119 @@ import {
   TimingInfo
 } from '../styles/SharedStyles';
 
+// 新增样式组件，为工具栏提供更精致的设计
+import styled from 'styled-components';
+
+// 高级工具栏样式
+const EnhancedToolbar = styled(ModuleToolbar)`
+  background-color: ${props => props.theme.colors.surfaceLight};
+  padding: 8px 12px;
+  border-radius: ${props => props.theme.borderRadius};
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+`;
+
+// 工具栏分组
+const ToolbarGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  &:not(:last-child) {
+    margin-right: 16px;
+    padding-right: 16px;
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+  }
+`;
+
+// 工具栏右侧区域
+const ToolbarRightSection = styled.div`
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
+// 统计信息显示
+const StatsDisplay = styled.div`
+  font-size: 12px;
+  color: ${props => props.theme.colors.textSecondary};
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+`;
+
+// 文件信息显示
+const FileInfo = styled.div`
+  font-size: 12px;
+  color: ${props => props.theme.colors.textSecondary};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+`;
+
+// 右侧侧滑面板
+const SidePanel = styled.div`
+  position: fixed;
+  top: 0;
+  right: ${props => props.isOpen ? '0' : '-400px'};
+  width: 400px;
+  height: 100vh;
+  background-color: ${props => props.theme.colors.surface};
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  transition: right 0.3s ease;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+// 侧滑面板头部
+const SidePanelHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid ${props => props.theme.colors.border};
+  background-color: ${props => props.theme.colors.surfaceLight};
+`;
+
+// 侧滑面板标题
+const SidePanelTitle = styled.h3`
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+`;
+
+// 关闭按钮
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: ${props => props.theme.colors.textSecondary};
+  &:hover {
+    color: ${props => props.theme.colors.textPrimary};
+  }
+`;
+
+// 侧滑面板内容区域
+const SidePanelContent = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+`;
+
+// 侧滑面板底部
+const SidePanelFooter = styled.div`
+  padding: 12px 16px;
+  border-top: 1px solid ${props => props.theme.colors.border};
+  display: flex;
+  justify-content: space-between;
+`;
+
 // 定义历史记录项的类型
 const createHistoryItem = (summary, content, timestamp) => ({
   summary,
@@ -386,7 +499,7 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
     // 首先寻找看起来像SRT的起始内容
     for (let i = 0; i < lines.length; i++) {
       // 检查当前行是否是数字（SRT编号）
-      if (/^\s*\d+\\s*$/.test(lines[i])) {
+      if (/^\s*\d+\s*$/.test(lines[i])) {
         // 检查下一行是否包含时间轴格式
         if (i + 1 < lines.length && /\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}/.test(lines[i + 1])) {
           // 找到SRT起始点，保留从这里开始的内容
@@ -609,110 +722,104 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
   return (
     <ModuleContainer>
       <ModuleHeader>
-        <ModuleToolbar>
-          <ActionButton 
-            primary 
-            onClick={handleReviseSubtitle}
-            disabled={!hasSettings || !content || loading}
-            title={!hasSettings ? "请先配置AI模型" : "使用AI修订字幕"}
-          >
-            AI字幕修订
-          </ActionButton>
-          
-          {/* 显示保存成功消息 */}
-          {showSaveNotification && lastSaveTime && (
-            <StatusMessage success visible>
-              ✓ 保存成功 <SaveTime>{lastSaveTime}</SaveTime>
-            </StatusMessage>
-          )}
-          
-          {/* 将历史记录按钮放在最右侧 */}
-          <div style={{ marginLeft: 'auto' }}>
-            {revisionHistory.length > 0 && (
-              <ActionButton
-                onClick={toggleHistoryPanel}
-                title="查看历史修订记录"
-              >
-                <ButtonIcon>
-                  <span role="img" aria-label="history">📋</span>
-                </ButtonIcon>
-                历史记录
-              </ActionButton>
-            )}
-          </div>
-        </ModuleToolbar>
-      </ModuleHeader>
-      
-      {!subtitlePath ? (
-        <EmptyState>
-          <p>暂无字幕可修订</p>
-          <p>请先生成或加载字幕</p>
-        </EmptyState>
-      ) : (
-        <ModuleContent>
-          {summary && (
-            <CollapsiblePanel isCollapsed={isSummaryCollapsed}>
-              <PanelHeader onClick={toggleSummaryCollapsed} isCollapsed={isSummaryCollapsed}>
-                <div>字幕修订摘要</div>
-                <CollapseIcon isCollapsed={isSummaryCollapsed}>
-                  {isSummaryCollapsed ? '▶' : '▼'}
-                </CollapseIcon>
-              </PanelHeader>
-              <PanelContent isCollapsed={isSummaryCollapsed}>
-                <div dangerouslySetInnerHTML={{ __html: summary.replace(/\n/g, '<br>') }}></div>
-              </PanelContent>
-            </CollapsiblePanel>
-          )}
-          
-          <TextEditor
-            value={content || ''}
-            onChange={(e) => onContentChange && onContentChange(e.target.value)}
-            placeholder="修订字幕将显示在这里，您可以直接编辑..."
-            disabled={loading}
-            isMonospace={true}
-            noMargin
-          />
-          
-          <ActionBar>
+        <EnhancedToolbar>
+          <ToolbarGroup>
             <ActionButton 
-              onClick={handleSave} 
-              disabled={!content || loading || isSaving}
-              primary
+              primary 
+              onClick={handleReviseSubtitle}
+              disabled={!hasSettings || !content || loading}
+              title={!hasSettings ? "请先配置AI模型" : "使用AI修订字幕"}
             >
-              {isSaving ? '保存中...' : '保存修订'}
+              使用AI修订字幕
             </ActionButton>
-          </ActionBar>
-          
-          {/* 使用独立的历史记录组件 */}
-          <RevisionHistory 
-            isOpen={isHistoryOpen}
-            onClose={toggleHistoryPanel}
-            history={revisionHistory}
-            selectedItem={selectedHistoryItem}
-            onSelectItem={handleLoadFromHistory}
-            onClearHistory={handleClearHistory}
-          />
-          
-          {loading && (
-            <LoadingOverlay>
-              <Spinner />
-              <div>正在进行AI字幕修订...</div>
-              <div style={{ fontSize: '13px', marginTop: '10px', opacity: '0.8' }}>
-                已用时间: {formatTime(elapsedTime)}
-              </div>
-              <div style={{ fontSize: '13px', marginTop: '5px', opacity: '0.8' }}>
-                字幕修订通常需要数分钟时间，请耐心等候
-              </div>
-            </LoadingOverlay>
-          )}
-
-          {!loading && showTimeSpent && totalTime && (
-            <TimingInfo>
-              修订总耗时: {formatTime(totalTime)}
-            </TimingInfo>
-          )}
-        </ModuleContent>
-      )}
+            <ActionButton 
+              onClick={handleSave}
+              disabled={!content || isSaving}
+              title="保存修订后的字幕"
+            >
+              保存
+            </ActionButton>
+            <ActionButton 
+              onClick={toggleSummaryCollapsed}
+              title={isSummaryCollapsed ? "展开摘要" : "折叠摘要"}
+            >
+              {isSummaryCollapsed ? '展开摘要' : '折叠摘要'}
+            </ActionButton>
+            <ActionButton 
+              onClick={toggleHistoryPanel}
+              title={isHistoryOpen ? "关闭修订历史" : "查看修订历史"}
+            >
+              {isHistoryOpen ? '关闭历史' : '查看历史'}
+            </ActionButton>
+            {showSaveNotification && (
+              <StatusMessage>
+                修订已保存
+              </StatusMessage>
+            )}
+          </ToolbarGroup>
+          <ToolbarRightSection>
+            {lastSaveTime && (
+              <SaveTime>
+                上次保存时间: {new Date(lastSaveTime).toLocaleTimeString()}
+              </SaveTime>
+            )}
+            {showTimeSpent && totalTime !== null && (
+              <TimingInfo>
+                总耗时: {formatTime(totalTime)}
+              </TimingInfo>
+            )}
+          </ToolbarRightSection>
+        </EnhancedToolbar>
+      </ModuleHeader>
+      <ModuleContent>
+        {loading && (
+          <LoadingOverlay>
+            <Spinner />
+          </LoadingOverlay>
+        )}
+        <TextEditor
+          value={content || ''}
+          onChange={(e) => onContentChange && onContentChange(e.target.value)}
+          placeholder="在此输入或粘贴字幕内容..."
+        />
+        
+        {!isSummaryCollapsed && summary && (
+          <CollapsiblePanel>
+            <PanelHeader>
+              修订摘要
+              <CollapseIcon onClick={toggleSummaryCollapsed}>
+                {isSummaryCollapsed ? '▼' : '▲'}
+              </CollapseIcon>
+            </PanelHeader>
+            <PanelContent>
+              <pre>{summary}</pre>
+            </PanelContent>
+          </CollapsiblePanel>
+        )}
+        {isHistoryOpen && (
+          <SidePanel isOpen={isHistoryOpen}>
+            <SidePanelHeader>
+              <SidePanelTitle>修订历史</SidePanelTitle>
+              <CloseButton onClick={toggleHistoryPanel}>×</CloseButton>
+            </SidePanelHeader>
+            <SidePanelContent>
+              {revisionHistory.length > 0 ? (
+                <RevisionHistory
+                  history={revisionHistory}
+                  onLoad={handleLoadFromHistory}
+                  onClear={handleClearHistory}
+                  selectedId={selectedHistoryItem}
+                />
+              ) : (
+                <EmptyState>暂无修订历史</EmptyState>
+              )}
+            </SidePanelContent>
+            <SidePanelFooter>
+              <ActionButton onClick={handleClearHistory}>清除历史</ActionButton>
+            </SidePanelFooter>
+          </SidePanel>
+        )}
+      </ModuleContent>
     </ModuleContainer>
   );
 }

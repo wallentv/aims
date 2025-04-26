@@ -57,23 +57,17 @@ const GroupTitle = styled.h3`
   letter-spacing: 0.5px; /* 增加字母间距提高可读性 */
 `;
 
-const ModelSettingsButton = styled.button`
+// 添加ModelOptionButton样式，与OptionButton类似但有轻微差异
+const ModelOptionButton = styled(OptionButton)`
   display: flex;
   align-items: center;
-  background-color: ${props => props.theme.colors.surfaceLight};
-  color: ${props => props.theme.colors.text};
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: ${props => props.theme.borderRadius};
-  padding: 8px 10px;
-  margin-top: 6px;
-  cursor: pointer;
-  font-size: 12px;
+  justify-content: center;
+  padding: 6px 10px; /* 略微增加高度 */
   width: 100%;
-  transition: all 0.2s;
   
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-color: ${props => props.theme.colors.secondary};
+  & > span {
+    margin-right: 5px;
+    font-size: 14px;
   }
 `;
 
@@ -84,7 +78,32 @@ const ButtonIcon = styled.span`
   align-items: center;
 `;
 
-function SubtitleSettings({ settings, onChange, onOpenModelSettings }) {
+// 添加提示UI组件
+const PromptContainer = styled.div`
+  margin-top: 12px;
+  padding: 8px 10px;
+  background-color: rgba(33, 150, 243, 0.08);
+  border-radius: ${props => props.theme.borderRadius};
+  border-left: 2px solid ${props => props.theme.colors.primary};
+  font-size: 12px;
+  color: ${props => props.theme.colors.textSecondary};
+  display: flex;
+  align-items: center;
+  animation: fadeIn 0.5s ease-in-out;
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+
+const PromptIcon = styled.span`
+  margin-right: 8px;
+  font-size: 14px;
+  color: ${props => props.theme.colors.primary};
+`;
+
+function SubtitleSettings({ settings, onChange, onOpenModelSettings, selectedFile }) {
   const languages = [
     { value: 'zh', label: '中文' },
     { value: 'en', label: '英文' }
@@ -93,6 +112,10 @@ function SubtitleSettings({ settings, onChange, onOpenModelSettings }) {
   const formats = [
     { value: 'srt', label: 'SRT' },
     { value: 'ssa', label: 'SSA' }
+  ];
+  
+  const models = [
+    { value: 'settings', label: '配置AI模型设置', icon: '⚙️' }
   ];
   
   const handleLanguageChange = (value) => {
@@ -136,15 +159,29 @@ function SubtitleSettings({ settings, onChange, onOpenModelSettings }) {
           </OptionsTable>
         </Group>
         
-        {/* AI模型设置选项 - 改为与其他Group保持一致 */}
         <Group>
           <GroupTitle>AI模型</GroupTitle>
-          <ModelSettingsButton onClick={onOpenModelSettings}>
-            <ButtonIcon>⚙️</ButtonIcon>
-            配置AI模型设置
-          </ModelSettingsButton>
+          <OptionsTable>
+            {models.map(model => (
+              <ModelOptionButton 
+                key={model.value}
+                onClick={onOpenModelSettings}
+              >
+                <ButtonIcon>{model.icon}</ButtonIcon>
+                {model.label}
+              </ModelOptionButton>
+            ))}
+          </OptionsTable>
         </Group>
       </SettingsGrid>
+      
+      {/* 添加底部提示UI */}
+      {!selectedFile && (
+        <PromptContainer>
+          <PromptIcon>💡</PromptIcon>
+          <span>请先选择视频或音频文件，然后设置字幕参数来生成智能字幕</span>
+        </PromptContainer>
+      )}
     </Container>
   );
 }

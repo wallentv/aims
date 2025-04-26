@@ -131,25 +131,81 @@ const ConfigSection = styled.div`
   margin-bottom: ${props => props.theme.spacing.small}; /* 减小下边距 */
 `;
 
-// 添加选项卡组件样式
+// 添加选项卡组件样式 - 更简约精致的设计
 const TabContainer = styled.div`
   display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding: ${props => props.theme.spacing.small} ${props => props.theme.spacing.small} 0;
+  background-color: ${props => props.theme.colors.surfaceLight};
+  border-radius: ${props => props.theme.borderRadius} ${props => props.theme.borderRadius} 0 0;
+  position: relative;
+  z-index: 1;
+  padding: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 `;
 
 const Tab = styled.div`
-  padding: 6px 16px; /* 增加选项卡内边距使其更突出 */
+  padding: 10px 16px;
   cursor: pointer;
-  border-bottom: 2px solid ${props => props.active ? props.theme.colors.secondary : 'transparent'};
-  color: ${props => props.active ? props.theme.colors.secondary : props.theme.colors.text};
-  font-weight: ${props => props.active ? 600 : 400};
-  transition: all 0.2s;
-  font-size: 14px; /* 增大选项卡字体大小 */
+  color: ${props => props.active ? props.theme.colors.secondary : props.theme.colors.textSecondary};
+  font-weight: ${props => props.active ? 500 : 400};
+  transition: all 0.2s ease;
+  font-size: 13px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background-color: ${props => props.active ? props.theme.colors.secondary : 'transparent'};
+    transition: all 0.2s ease;
+  }
   
   &:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    color: ${props => props.active ? props.theme.colors.secondary : props.theme.colors.text};
+    background-color: ${props => props.active ? 'rgba(33, 134, 208, 0.05)' : 'rgba(255, 255, 255, 0.02)'};
   }
+  
+  &:active {
+    transform: translateY(1px);
+  }
+`;
+
+const TabIcon = styled.span`
+  margin-right: 6px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  opacity: ${props => props.active ? 1 : 0.7};
+  transition: opacity 0.2s ease;
+`;
+
+// 添加头部组件样式
+const AppHeader = styled.div`
+  margin-bottom: ${props => props.theme.spacing.medium};
+  padding: 0 0 ${props => props.theme.spacing.small} 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const AppTitle = styled.h1`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: ${props => props.theme.colors.text};
+`;
+
+const AppSubtitle = styled.span`
+  font-size: 12px;
+  font-weight: normal;
+  color: ${props => props.theme.colors.textSecondary};
+  margin-left: 10px;
 `;
 
 // 添加提示框样式
@@ -660,6 +716,9 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <AppContainer>
+        <AppHeader>
+          <AppTitle>字幕生成器<AppSubtitle>更简约精致的设计</AppSubtitle></AppTitle>
+        </AppHeader>
         <MainContent>
           {/* 左侧配置面板 */}
           <ConfigPanel>
@@ -702,18 +761,36 @@ function App() {
                 active={activeTab === 'editor'} 
                 onClick={() => handleTabChange('editor')}
               >
+                <TabIcon active={activeTab === 'editor'}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14.06 9L15 9.94L5.92 19H5V18.08L14.06 9ZM17.66 3C17.41 3 17.15 3.1 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04C21.1 6.65 21.1 6 20.71 5.63L18.37 3.29C18.17 3.09 17.92 3 17.66 3ZM14.06 6.19L3 17.25V21H6.75L17.81 9.94L14.06 6.19Z" 
+                    fill="currentColor"/>
+                  </svg>
+                </TabIcon>
                 字幕编辑
               </Tab>
               <Tab 
                 active={activeTab === 'revision'} 
                 onClick={() => handleTabChange('revision')}
               >
+                <TabIcon active={activeTab === 'revision'}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 16.5L7.5 12L9 10.5L12 13.5L15 10.5L16.5 12L12 16.5ZM3.9 12C3.9 10.29 4.29 8.6 5.07 7.08C5.85 5.56 7 4.26 8.42 3.34C9.85 2.43 11.5 1.94 13.2 1.94C14.88 1.94 16.54 2.44 17.96 3.36C19.38 4.27 20.53 5.57 21.31 7.1C22.1 8.62 22.49 10.31 22.49 11.97C22.49 13.67 22.1 15.36 21.33 16.9C20.55 18.44 19.41 19.75 17.99 20.67C16.56 21.59 14.89 22.07 13.18 22.06C11.48 22.06 9.82 21.58 8.4 20.68C6.97 19.77 5.82 18.48 5.03 16.96C4.25 15.42 3.9 13.72 3.9 12ZM5.9 12C5.9 13.31 6.19 14.61 6.76 15.77C7.32 16.93 8.15 17.94 9.17 18.71C10.2 19.48 11.39 19.98 12.65 20.15C13.91 20.33 15.2 20.18 16.39 19.7C17.57 19.23 18.62 18.46 19.44 17.46C20.26 16.46 20.82 15.27 21.08 14.01C21.33 12.75 21.27 11.44 20.9 10.21C20.53 8.97 19.85 7.85 18.93 6.93C17.29 5.28 15.05 4.33 12.68 4.33C11.05 4.32 9.45 4.76 8.06 5.59C6.67 6.42 5.56 7.61 4.84 9.03C6.09 8.74 7.31 9.14 8.09 10.01C8.87 10.88 9.15 12.06 8.81 13.15C8.47 14.24 7.61 15.08 6.5 15.41C6.31 14.35 6.06 13.19 5.9 12Z" 
+                    fill="currentColor"/>
+                  </svg>
+                </TabIcon>
                 字幕修订
               </Tab>
               <Tab 
                 active={activeTab === 'summary'} 
                 onClick={() => handleTabChange('summary')}
               >
+                <TabIcon active={activeTab === 'summary'}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 5V19H5V5H19ZM21 3H3V21H21V3ZM17 17H7V16H17V17ZM17 15H7V14H17V15ZM17 12H7V7H17V12Z" 
+                    fill="currentColor"/>
+                  </svg>
+                </TabIcon>
                 字幕总结
               </Tab>
             </TabContainer>

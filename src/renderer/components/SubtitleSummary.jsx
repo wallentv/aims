@@ -17,9 +17,60 @@ import {
   SectionActions,
   CopyButton,
   TextEditor,
-  ActionBar
+  ActionBar,
+  SaveTime
 } from '../styles/SharedStyles';
 import styled from 'styled-components';
+
+// 高级工具栏样式
+const EnhancedToolbar = styled(ModuleToolbar)`
+  background-color: ${props => props.theme.colors.surfaceLight};
+  padding: 8px 12px;
+  border-radius: ${props => props.theme.borderRadius};
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+`;
+
+// 工具栏分组
+const ToolbarGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  &:not(:last-child) {
+    margin-right: 16px;
+    padding-right: 16px;
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+  }
+`;
+
+// 工具栏右侧区域
+const ToolbarRightSection = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
+// 工具提示
+const Tooltip = styled.div`
+  font-size: 12px;
+  color: ${props => props.theme.colors.textSecondary};
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+`;
+
+// 文件信息显示
+const FileInfo = styled.div`
+  font-size: 12px;
+  color: ${props => props.theme.colors.textSecondary};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+`;
 
 // 自定义ModuleContent样式，确保滚动和内容填充
 const StyledModuleContent = styled(ModuleContent)`
@@ -37,24 +88,6 @@ const StyledModuleContent = styled(ModuleContent)`
     background-color: rgba(155, 155, 155, 0.5);
     border-radius: 3px;
   }
-`;
-
-// 自定义工具栏样式，使其支持两侧对齐
-const StyledModuleToolbar = styled(ModuleToolbar)`
-  display: flex;
-  width: 100%;
-`;
-
-// 左侧工具栏区域
-const LeftToolbarSection = styled.div`
-  display: flex;
-  align-items: center;
-`;
-
-// 右侧工具栏区域
-const RightToolbarSection = styled.div`
-  display: flex;
-  align-items: center;
 `;
 
 // 自定义TextEditor样式，确保宽度对齐和填满
@@ -129,6 +162,17 @@ function SubtitleSummary({ subtitlePath, content, modelSettings }) {
   const [description, setDescription] = useState('');
   const [chapters, setChapters] = useState('');
   const [tags, setTags] = useState('');
+  
+  // 初始内容引用 - 用来追踪内容是否真正被修改
+  const initialContent = useRef({
+    title: '',
+    description: '',
+    chapters: '',
+    tags: ''
+  });
+  
+  // 初始化时的加载标志，防止首次加载时显示保存提示
+  const isInitialLoad = useRef(true);
   
   // 状态消息
   const [statusMessage, setStatusMessage] = useState('');
@@ -217,11 +261,22 @@ function SubtitleSummary({ subtitlePath, content, modelSettings }) {
         setChapters(parsedData.chapters || '');
         setTags(parsedData.tags || '');
         
+        // 保存初始内容，用于后续比较变化
+        initialContent.current = {
+          title: parsedData.title || '',
+          description: parsedData.description || '',
+          chapters: parsedData.chapters || '',
+          tags: parsedData.tags || ''
+        };
+        
         // 如果有任何内容，将完成标志设为true
         if (parsedData.title || parsedData.description || parsedData.chapters || parsedData.tags) {
           setSummaryCompleted(true);
         }
       }
+      
+      // 重置初始加载标志
+      isInitialLoad.current = false;
     } catch (error) {
       console.error('加载保存的总结内容出错:', error);
     }
@@ -272,14 +327,34 @@ function SubtitleSummary({ subtitlePath, content, modelSettings }) {
   
   // 输入完成后自动保存（使用防抖）
   useEffect(() => {
+    // 如果是初始加载，不显示保存提示
+    if (isInitialLoad.current) {
+      return;
+    }
+    
     const saveTimeout = setTimeout(() => {
+      // 检查内容是否真的有变化
+      const contentChanged = 
+        title !== initialContent.current.title ||
+        description !== initialContent.current.description ||
+        chapters !== initialContent.current.chapters ||
+        tags !== initialContent.current.tags;
+      
+      // 保存当前内容
       saveSummary();
       
-      // 显示已保存消息
-      if (title || description || chapters || tags) {
+      // 只有在内容确实发生变化时才显示提示
+      if (contentChanged && (title || description || chapters || tags)) {
         showStatusMessage('内容已保存');
+        
+        // 更新初始内容，以便下次检查变化
+        initialContent.current = {
+          title,
+          description,
+          chapters,
+          tags
+        };
       }
-      
     }, 1000); // 1秒防抖
     
     return () => clearTimeout(saveTimeout);
@@ -553,29 +628,46 @@ ${content}`;
   return (
     <ModuleContainer>
       <ModuleHeader>
-        <StyledModuleToolbar>
-          <LeftToolbarSection>
+        <EnhancedToolbar>
+          <ToolbarGroup>
             <ActionButton 
               primary 
               onClick={handleGenerateSummary}
               disabled={!hasSettings || !content || loading}
               title={!hasSettings ? "请先配置AI模型" : "使用AI生成总结"}
             >
-              AI生成总结
+              使用AI生成总结
             </ActionButton>
-          </LeftToolbarSection>
-          
-          {/* 状态消息显示区域 */}
-          {showStatus && (
-            <StatusMessage 
-              success={isStatusSuccess} 
-              error={!isStatusSuccess}
-              visible={true}
+            <ActionButton 
+              onClick={copyAllToClipboard}
+              disabled={!title && !description && !chapters && !tags}
+              title="复制所有总结内容"
             >
-              {statusMessage}
-            </StatusMessage>
-          )}
-        </StyledModuleToolbar>
+              复制全部
+            </ActionButton>
+            {showStatus && (
+              <StatusMessage 
+                success={isStatusSuccess} 
+                error={!isStatusSuccess}
+                visible={true}
+              >
+                {statusMessage}
+              </StatusMessage>
+            )}
+          </ToolbarGroup>
+          <ToolbarRightSection>
+            {totalTime !== null && !loading && (
+              <TimingInfo>
+                总耗时: {formatTime(totalTime)}
+              </TimingInfo>
+            )}
+            {subtitlePath && (
+              <FileInfo title={subtitlePath}>
+                文件: {getFileNameWithoutExtension(subtitlePath)}
+              </FileInfo>
+            )}
+          </ToolbarRightSection>
+        </EnhancedToolbar>
       </ModuleHeader>
       
       {!subtitlePath ? (
@@ -707,28 +799,7 @@ ${content}`;
               </div>
             </LoadingOverlay>
           )}
-
-          {!loading && totalTime && (
-            <TimingInfo>
-              总结生成耗时: {formatTime(totalTime)}
-            </TimingInfo>
-          )}
         </StyledModuleContent>
-      )}
-      
-      {/* 底部操作栏 - 添加复制全部按钮 */}
-      {summaryCompleted && subtitlePath && (
-        <ActionBar>
-          <div style={{ marginLeft: 'auto' }}>
-            <ActionButton 
-              onClick={copyAllToClipboard}
-              disabled={!title && !description && !chapters && !tags}
-              primary
-            >
-              复制全部
-            </ActionButton>
-          </div>
-        </ActionBar>
       )}
     </ModuleContainer>
   );

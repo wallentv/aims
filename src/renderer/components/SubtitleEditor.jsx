@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import ProgressBar from './ProgressBar.jsx';
 import {
   ModuleContainer,
+  ModuleHeader,
+  ModuleToolbar,
   ModuleContent,
   TextEditor,
   ActionBar,
@@ -14,8 +16,51 @@ import {
   ProgressHeader,
   ProgressInfo,
   ProgressValue,
-  MinimalProgress
+  MinimalProgress,
+  TimingInfo
 } from '../styles/SharedStyles';
+import styled from 'styled-components';
+
+// 高级工具栏样式
+const EnhancedToolbar = styled(ModuleToolbar)`
+  background-color: ${props => props.theme.colors.surfaceLight};
+  padding: 8px 12px;
+  border-radius: ${props => props.theme.borderRadius};
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+`;
+
+// 工具栏分组
+const ToolbarGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  &:not(:last-child) {
+    margin-right: 16px;
+    padding-right: 16px;
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+  }
+`;
+
+// 工具栏右侧区域
+const ToolbarRightSection = styled.div`
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
+// 文件信息显示
+const FileInfo = styled.div`
+  font-size: 12px;
+  color: ${props => props.theme.colors.textSecondary};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+`;
 
 function SubtitleEditor({ 
   subtitlePath, 
@@ -99,9 +144,53 @@ function SubtitleEditor({
     if (!stageText) return '处理中...';
     return stageText;
   };
+  
+  // 获取文件名（不含路径）的函数
+  const getFileName = (path) => {
+    if (!path) return '';
+    return path.split(/[\/\\]/).pop();
+  };
 
   return (
     <ModuleContainer>
+      <ModuleHeader>
+        <EnhancedToolbar>
+          <ToolbarGroup>
+            <ActionButton 
+              onClick={handleSave} 
+              disabled={isGenerating || isSaving || !subtitlePath || !content}
+              title="保存当前字幕文件"
+            >
+              {isSaving ? '保存中...' : '保存'}
+            </ActionButton>
+            <ActionButton 
+              onClick={openSubtitleFolder}
+              disabled={!subtitlePath}
+              title="在文件资源管理器中打开字幕文件目录"
+            >
+              打开目录
+            </ActionButton>
+            {showSaveNotification && (
+              <StatusMessage success visible>
+                ✓ 保存成功
+              </StatusMessage>
+            )}
+          </ToolbarGroup>
+          <ToolbarRightSection>
+            {lastSaveTime && (
+              <SaveTime>
+                上次保存时间: {new Date(lastSaveTime).toLocaleTimeString()}
+              </SaveTime>
+            )}
+            {subtitlePath && (
+              <FileInfo title={subtitlePath}>
+                文件: {getFileName(subtitlePath)}
+              </FileInfo>
+            )}
+          </ToolbarRightSection>
+        </EnhancedToolbar>
+      </ModuleHeader>
+      
       {/* 根据不同状态显示不同的UI */}
       {isGenerating && (
         isTranscribingStage ? (
@@ -162,30 +251,6 @@ function SubtitleEditor({
           </LoadingOverlay>
         )}
       </ModuleContent>
-      
-      {/* 按钮区域 */}
-      <ActionBar>
-        {/* 保存成功提示 */}
-        {showSaveNotification && lastSaveTime && (
-          <StatusMessage success visible>
-            ✓ 保存成功 <SaveTime>{lastSaveTime}</SaveTime>
-          </StatusMessage>
-        )}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-          {subtitlePath && (
-            <ActionButton onClick={openSubtitleFolder}>
-              打开目录
-            </ActionButton>
-          )}
-          <ActionButton 
-            onClick={handleSave} 
-            disabled={isGenerating || isSaving || !subtitlePath || !content}
-            primary
-          >
-            {isSaving ? '保存中...' : '保存'}
-          </ActionButton>
-        </div>
-      </ActionBar>
     </ModuleContainer>
   );
 }
