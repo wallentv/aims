@@ -64,7 +64,7 @@ export const SummaryContent = styled.div`
   
   &::-webkit-scrollbar-thumb {
     background-color: rgba(155, 155, 155, 0.5);
-    border-radius: 3px;
+    border-radius: 0; /* 改为直角 */
   }
 `;
 

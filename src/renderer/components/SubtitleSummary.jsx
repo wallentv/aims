@@ -86,7 +86,7 @@ const StyledModuleContent = styled(ModuleContent)`
   
   &::-webkit-scrollbar-thumb {
     background-color: rgba(155, 155, 155, 0.5);
-    border-radius: 3px;
+    border-radius: 0; /* 改为直角 */
   }
 `;
 
@@ -660,11 +660,6 @@ ${content}`;
               <TimingInfo>
                 总耗时: {formatTime(totalTime)}
               </TimingInfo>
-            )}
-            {subtitlePath && (
-              <FileInfo title={subtitlePath}>
-                文件: {getFileNameWithoutExtension(subtitlePath)}
-              </FileInfo>
             )}
           </ToolbarRightSection>
         </EnhancedToolbar>

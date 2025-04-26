@@ -56,6 +56,12 @@ export const TextEditor = styled.textarea`
   &:focus {
     box-shadow: inset 0 0 0 1px ${props => props.theme.colors.secondary};
   }
+
+  /* 自定义滚动条样式 */
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(155, 155, 155, 0.5);
+    border-radius: 0; /* 改为直角 */
+  }
 `;
 
 // 统一的按钮样式

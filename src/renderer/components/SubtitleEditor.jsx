@@ -182,11 +182,6 @@ function SubtitleEditor({
                 上次保存时间: {new Date(lastSaveTime).toLocaleTimeString()}
               </SaveTime>
             )}
-            {subtitlePath && (
-              <FileInfo title={subtitlePath}>
-                文件: {getFileName(subtitlePath)}
-              </FileInfo>
-            )}
           </ToolbarRightSection>
         </EnhancedToolbar>
       </ModuleHeader>

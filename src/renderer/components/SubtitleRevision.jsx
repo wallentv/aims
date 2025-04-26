@@ -1,27 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import RevisionHistory from './RevisionHistory';
 import {
   ModuleContainer,
   ModuleHeader,
   ModuleToolbar,
   ModuleContent,
   TextEditor,
-  ActionBar,
   ActionButton,
-  ButtonIcon,
   StatusMessage,
   SaveTime,
-  EmptyState,
   LoadingOverlay,
   Spinner,
-  CollapsiblePanel,
-  PanelHeader,
-  PanelContent,
-  CollapseIcon,
   TimingInfo
 } from '../styles/SharedStyles';
 
-// 新增样式组件，为工具栏提供更精致的设计
+// 新增样式组件
 import styled from 'styled-components';
 
 // 高级工具栏样式
@@ -55,15 +47,6 @@ const ToolbarRightSection = styled.div`
   align-items: center;
 `;
 
-// 统计信息显示
-const StatsDisplay = styled.div`
-  font-size: 12px;
-  color: ${props => props.theme.colors.textSecondary};
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-`;
-
 // 文件信息显示
 const FileInfo = styled.div`
   font-size: 12px;
@@ -74,73 +57,78 @@ const FileInfo = styled.div`
   max-width: 200px;
 `;
 
-// 右侧侧滑面板
-const SidePanel = styled.div`
+// 弹窗样式
+const ModalOverlay = styled.div`
   position: fixed;
   top: 0;
-  right: ${props => props.isOpen ? '0' : '-400px'};
-  width: 400px;
-  height: 100vh;
-  background-color: ${props => props.theme.colors.surface};
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
-  transition: right 0.3s ease;
-  z-index: 1000;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 `;
 
-// 侧滑面板头部
-const SidePanelHeader = styled.div`
+const ModalContent = styled.div`
+  background-color: ${props => props.theme.colors.surface};
+  border-radius: ${props => props.theme.borderRadius};
+  padding: 20px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+`;
+
+const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid ${props => props.theme.colors.border};
-  background-color: ${props => props.theme.colors.surfaceLight};
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
-// 侧滑面板标题
-const SidePanelTitle = styled.h3`
+const ModalTitle = styled.h3`
   margin: 0;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 18px;
+  color: ${props => props.theme.colors.text};
 `;
 
-// 关闭按钮
-const CloseButton = styled.button`
+const ModalCloseButton = styled.button`
   background: none;
   border: none;
-  cursor: pointer;
-  font-size: 20px;
   color: ${props => props.theme.colors.textSecondary};
+  font-size: 20px;
+  cursor: pointer;
+  
   &:hover {
-    color: ${props => props.theme.colors.textPrimary};
+    color: ${props => props.theme.colors.text};
   }
 `;
 
-// 侧滑面板内容区域
-const SidePanelContent = styled.div`
-  flex: 1;
+const ModalBody = styled.div`
+  margin-bottom: 16px;
+  max-height: 50vh;
   overflow-y: auto;
-  padding: 16px;
+  
+  pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 14px;
+    line-height: 1.5;
+  }
 `;
 
-// 侧滑面板底部
-const SidePanelFooter = styled.div`
-  padding: 12px 16px;
-  border-top: 1px solid ${props => props.theme.colors.border};
+const ModalFooter = styled.div`
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 `;
-
-// 定义历史记录项的类型
-const createHistoryItem = (summary, content, timestamp) => ({
-  summary,
-  content,
-  timestamp,
-  id: Date.now() // 唯一ID
-});
 
 // 格式化时间为分:秒格式
 const formatTime = (seconds) => {
@@ -156,10 +144,7 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
   const [lastSaveTime, setLastSaveTime] = useState(null);
   const [showSaveNotification, setShowSaveNotification] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [revisionHistory, setRevisionHistory] = useState([]);
-  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
+  const [showResultModal, setShowResultModal] = useState(false);
   
   // 计时相关状态
   const [startTime, setStartTime] = useState(null);
@@ -184,21 +169,6 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
       setHasSettings(false);
     }
   }, [modelSettings]);
-  
-  // 加载历史记录
-  useEffect(() => {
-    try {
-      if (subtitlePath) {
-        const historyKey = `revisionHistory_${subtitlePath}`;
-        const savedHistory = localStorage.getItem(historyKey);
-        if (savedHistory) {
-          setRevisionHistory(JSON.parse(savedHistory));
-        }
-      }
-    } catch (error) {
-      console.error('加载历史记录出错:', error);
-    }
-  }, [subtitlePath]);
 
   // 当摘要更新时，通知父组件
   useEffect(() => {
@@ -219,45 +189,6 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
         setShowSaveNotification(false);
       }, 3000);
       
-      // 如果有修订摘要或内容变化，则保存到历史记录
-      if (content && subtitlePath) {
-        try {
-          const historyKey = `revisionHistory_${subtitlePath}`;
-          const savedHistory = localStorage.getItem(historyKey);
-          let currentHistory = savedHistory ? JSON.parse(savedHistory) : [];
-          
-          // 创建新的历史记录项
-          const newHistoryItem = createHistoryItem(
-            data.summary || summary || '手动修订',
-            content, 
-            data.saveTime
-          );
-          
-          // 检测是否重复
-          let isDuplicate = false;
-          if (currentHistory.length > 0) {
-            const lastItem = currentHistory[0];
-            const normalizedNewContent = content.replace(/\s+/g, ' ').trim();
-            const normalizedOldContent = lastItem.content.replace(/\s+/g, ' ').trim();
-            const newSummaryBase = (data.summary || summary || '手动修订').replace(/\n耗时:.+$/s, '').trim();
-            const oldSummaryBase = lastItem.summary.replace(/\n耗时:.+$/s, '').trim();
-            
-            if (normalizedNewContent === normalizedOldContent && newSummaryBase === oldSummaryBase) {
-              isDuplicate = true;
-            }
-          }
-          
-          if (!isDuplicate) {
-            // 添加新记录到历史，最多保留20条
-            const updatedHistory = [newHistoryItem, ...currentHistory].slice(0, 20);
-            localStorage.setItem(historyKey, JSON.stringify(updatedHistory));
-            setRevisionHistory(updatedHistory);
-          }
-        } catch (e) {
-          console.error('保存或获取历史记录失败:', e);
-        }
-      }
-      
       return () => clearTimeout(timer);
     };
     
@@ -274,7 +205,6 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
 
     setLoading(true);
     setSummary('');
-    setIsSummaryCollapsed(false);
     
     // 设置开始时间并启动计时器
     const start = Date.now();
@@ -363,6 +293,9 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
         timeoutRef.current = setTimeout(() => {
           setShowTimeSpent(false);
         }, 5000);
+        
+        // 显示结果弹窗
+        setShowResultModal(true);
       }
     } catch (error) {
       console.error('AI修订字幕出错:', error);
@@ -670,41 +603,9 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
     }
   };
 
-  // 切换摘要是否折叠
-  const toggleSummaryCollapsed = () => {
-    setIsSummaryCollapsed(!isSummaryCollapsed);
-  };
-
-  // 切换历史面板
-  const toggleHistoryPanel = () => {
-    setIsHistoryOpen(!isHistoryOpen);
-  };
-
-  // 从历史记录中加载内容
-  const handleLoadFromHistory = (historyItem) => {
-    if (!historyItem) return;
-    
-    setSelectedHistoryItem(historyItem.id);
-    
-    if (onContentChange) {
-      onContentChange(historyItem.content);
-    }
-    setSummary(historyItem.summary);
-    setIsSummaryCollapsed(false);
-  };
-
-  // 清除历史记录
-  const handleClearHistory = () => {
-    if (subtitlePath) {
-      try {
-        const historyKey = `revisionHistory_${subtitlePath}`;
-        localStorage.removeItem(historyKey);
-        setRevisionHistory([]);
-        setSelectedHistoryItem(null);
-      } catch (error) {
-        console.error('清除历史记录失败:', error);
-      }
-    }
+  // 关闭结果弹窗
+  const handleCloseResultModal = () => {
+    setShowResultModal(false);
   };
 
   // 清除计时器
@@ -739,18 +640,6 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
             >
               保存
             </ActionButton>
-            <ActionButton 
-              onClick={toggleSummaryCollapsed}
-              title={isSummaryCollapsed ? "展开摘要" : "折叠摘要"}
-            >
-              {isSummaryCollapsed ? '展开摘要' : '折叠摘要'}
-            </ActionButton>
-            <ActionButton 
-              onClick={toggleHistoryPanel}
-              title={isHistoryOpen ? "关闭修订历史" : "查看修订历史"}
-            >
-              {isHistoryOpen ? '关闭历史' : '查看历史'}
-            </ActionButton>
             {showSaveNotification && (
               <StatusMessage>
                 修订已保存
@@ -775,6 +664,13 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
         {loading && (
           <LoadingOverlay>
             <Spinner />
+            <div style={{ marginTop: '15px', textAlign: 'center' }}>
+              <div>正在修订字幕中...</div>
+              <div style={{ marginTop: '10px', fontSize: '14px' }}>已用时间: {formatTime(elapsedTime)}</div>
+              <div style={{ marginTop: '5px', fontSize: '13px', opacity: '0.8' }}>
+                字幕修订通常需要数分钟时间，请耐心等候
+              </div>
+            </div>
           </LoadingOverlay>
         )}
         <TextEditor
@@ -783,41 +679,24 @@ function SubtitleRevision({ subtitlePath, initialContent, content, onContentChan
           placeholder="在此输入或粘贴字幕内容..."
         />
         
-        {!isSummaryCollapsed && summary && (
-          <CollapsiblePanel>
-            <PanelHeader>
-              修订摘要
-              <CollapseIcon onClick={toggleSummaryCollapsed}>
-                {isSummaryCollapsed ? '▼' : '▲'}
-              </CollapseIcon>
-            </PanelHeader>
-            <PanelContent>
-              <pre>{summary}</pre>
-            </PanelContent>
-          </CollapsiblePanel>
-        )}
-        {isHistoryOpen && (
-          <SidePanel isOpen={isHistoryOpen}>
-            <SidePanelHeader>
-              <SidePanelTitle>修订历史</SidePanelTitle>
-              <CloseButton onClick={toggleHistoryPanel}>×</CloseButton>
-            </SidePanelHeader>
-            <SidePanelContent>
-              {revisionHistory.length > 0 ? (
-                <RevisionHistory
-                  history={revisionHistory}
-                  onLoad={handleLoadFromHistory}
-                  onClear={handleClearHistory}
-                  selectedId={selectedHistoryItem}
-                />
-              ) : (
-                <EmptyState>暂无修订历史</EmptyState>
-              )}
-            </SidePanelContent>
-            <SidePanelFooter>
-              <ActionButton onClick={handleClearHistory}>清除历史</ActionButton>
-            </SidePanelFooter>
-          </SidePanel>
+        {/* 修订结果弹窗 */}
+        {showResultModal && summary && (
+          <ModalOverlay>
+            <ModalContent>
+              <ModalHeader>
+                <ModalTitle>字幕修订完成</ModalTitle>
+                <ModalCloseButton onClick={handleCloseResultModal}>×</ModalCloseButton>
+              </ModalHeader>
+              <ModalBody>
+                <pre>{summary}</pre>
+              </ModalBody>
+              <ModalFooter>
+                <ActionButton onClick={handleCloseResultModal}>
+                  确定
+                </ActionButton>
+              </ModalFooter>
+            </ModalContent>
+          </ModalOverlay>
         )}
       </ModuleContent>
     </ModuleContainer>

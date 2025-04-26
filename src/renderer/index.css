@@ -28,7 +28,7 @@ code {
 
 ::-webkit-scrollbar-thumb {
   background: #606060;
-  border-radius: 4px;
+  border-radius: 0; /* 将滚动条改为直角 */
 }
 
 ::-webkit-scrollbar-thumb:hover {
